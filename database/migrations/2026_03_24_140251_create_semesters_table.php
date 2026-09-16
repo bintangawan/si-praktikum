@@ -12,10 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('semesters', function (Blueprint $table) {
-                $table->id();
-                $table->string('name'); // Contoh: Genap 2025/2026
-                $table->boolean('is_active')->default(false);
-                $table->timestamps();
+            $table->id();
+            $table->string('name'); // Contoh: Genap 2025/2026
+            $table->boolean('is_active')->default(false);
+            $table->timestamps();
         });
     }
 

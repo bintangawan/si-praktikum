@@ -9,8 +9,13 @@ class FinalTask extends Model
     protected $fillable = [
         'course_id',
         'description',
-        'deadline'
+        'deadline',
     ];
+
+    protected function casts(): array
+    {
+        return ['deadline' => 'datetime'];
+    }
 
     // Relasi ke Kelas
     public function course()

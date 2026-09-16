@@ -2,37 +2,37 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class Submission extends Model
 {
-    protected $guarded = [];
     use HasFactory;
+
     protected $fillable = [
-        'student_id', 
+        'student_id',
         'meeting_id',
         'submission_link',
-        'notes',           
-        'final_task_id', 
+        'notes',
+        'final_task_id',
         'is_final',
-        'aslab_status', 
-        'laboran_status', 
-        'dosen_status', 
+        'aslab_status',
+        'laboran_status',
+        'dosen_status',
         'is_completed',
-        'first_upload_at', 
-        'last_upload_at', 
-        'aslab_acc_at', 
-        'laboran_acc_at', 
-        'dosen_acc_at'
+        'first_upload_at',
+        'last_upload_at',
+        'aslab_acc_at',
+        'laboran_acc_at',
+        'dosen_acc_at',
     ];
 
     protected $casts = [
         'first_upload_at' => 'datetime',
-        'last_upload_at'  => 'datetime',
-        'aslab_acc_at'    => 'datetime',
-        'laboran_acc_at'  => 'datetime',
-        'dosen_acc_at'    => 'datetime',
+        'last_upload_at' => 'datetime',
+        'aslab_acc_at' => 'datetime',
+        'laboran_acc_at' => 'datetime',
+        'dosen_acc_at' => 'datetime',
         'is_completed' => 'boolean',
         'is_final' => 'boolean',
     ];
@@ -56,7 +56,8 @@ class Submission extends Model
     }
 
     // Relasi ke Riwayat (Sangat penting untuk melihat semua link revisi)
-    public function histories() {
+    public function histories()
+    {
         return $this->hasMany(SubmissionHistory::class)->orderBy('iteration', 'desc');
     }
 }

@@ -4,15 +4,17 @@ namespace App\Exports;
 
 use App\Models\Course;
 use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithTitle;
-use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 
-class AttendanceReportExport implements FromCollection, WithHeadings, WithMapping, WithTitle, ShouldAutoSize
+class AttendanceReportExport implements FromCollection, ShouldAutoSize, WithHeadings, WithMapping, WithTitle
 {
     protected Course $course;
+
     protected $report;
+
     protected $meetings;
 
     public function __construct(Course $course, $report, $meetings)
@@ -29,7 +31,7 @@ class AttendanceReportExport implements FromCollection, WithHeadings, WithMappin
 
     public function title(): string
     {
-        return 'Rekap Presensi - ' . $this->course->course_name;
+        return 'Rekap Presensi - '.$this->course->course_name;
     }
 
     /**
@@ -43,7 +45,7 @@ class AttendanceReportExport implements FromCollection, WithHeadings, WithMappin
         ];
 
         foreach ($this->meetings as $m) {
-            $headings[] = 'P' . $m->meeting_number;
+            $headings[] = 'P'.$m->meeting_number;
         }
 
         array_push(
@@ -69,15 +71,17 @@ class AttendanceReportExport implements FromCollection, WithHeadings, WithMappin
 
         foreach ($this->meetings as $m) {
             $status = $row->per_meeting_status[$m->id] ?? '-';
-            if ($status === 'A') { $status = 'TK'; } // Konversi A ke TK
-            $mappedData[] = ($status === '-' || !$status) ? '-' : $status;
+            if ($status === 'A') {
+                $status = 'TK';
+            } // Konversi A ke TK
+            $mappedData[] = ($status === '-' || ! $status) ? '-' : $status;
         }
 
-        $hadir = isset($row->hadir) && $row->hadir !== false ? (int)$row->hadir : 0;
-        $sakit = isset($row->sakit) && $row->sakit !== false ? (int)$row->sakit : 0;
-        $izin  = isset($row->izin)  && $row->izin  !== false ? (int)$row->izin  : 0;
-        $alpha = isset($row->alpha) && $row->alpha !== false ? (int)$row->alpha : 0;
-        $percentage = isset($row->percentage) && $row->percentage !== false ? (int)$row->percentage : 0;
+        $hadir = isset($row->hadir) && $row->hadir !== false ? (int) $row->hadir : 0;
+        $sakit = isset($row->sakit) && $row->sakit !== false ? (int) $row->sakit : 0;
+        $izin = isset($row->izin) && $row->izin !== false ? (int) $row->izin : 0;
+        $alpha = isset($row->alpha) && $row->alpha !== false ? (int) $row->alpha : 0;
+        $percentage = isset($row->percentage) && $row->percentage !== false ? (int) $row->percentage : 0;
 
         array_push(
             $mappedData,
@@ -85,7 +89,7 @@ class AttendanceReportExport implements FromCollection, WithHeadings, WithMappin
             $sakit,
             $izin,
             $alpha,
-            $percentage . '%',
+            $percentage.'%',
             $percentage >= 75 ? 'Aman' : 'Peringatan',
             ''
         );

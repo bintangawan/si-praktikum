@@ -16,9 +16,9 @@ class TutorialController extends Controller
         // Pencarian berdasarkan Judul atau Deskripsi
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('title', 'like', "%{$search}%")
-                ->orWhere('description', 'like', "%{$search}%");
+                    ->orWhere('description', 'like', "%{$search}%");
             });
         }
 
@@ -40,31 +40,30 @@ class TutorialController extends Controller
         }
 
         $request->validate([
-            'title'       => 'required|string|max:255',
+            'title' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'type'        => 'required|in:youtube,gdrive_pdf',
-            'url'         => 'required|url',
+            'type' => 'required|in:youtube,gdrive_pdf',
+            'url' => 'required|url',
         ]);
 
         Tutorial::create([
-            'title'       => $request->title,
+            'title' => $request->title,
             'description' => $request->description,
-            'type'        => $request->type,
-            'url'         => $request->url,
-            'created_by'  => auth()->id(),
+            'type' => $request->type,
+            'url' => $request->url,
+            'created_by' => auth()->id(),
         ]);
 
         return redirect()->back()->with('success', 'Tutorial berhasil ditambahkan!');
     }
 
-    public function destroy(int $id): RedirectResponse
+    public function destroy(Tutorial $tutorial): RedirectResponse
     {
         // Hanya Laboran yang bisa menghapus
         if (strtoupper(auth()->user()->active_role) !== 'LABORAN') {
             return redirect()->back()->with('error', 'Akses ditolak.');
         }
 
-        $tutorial = Tutorial::findOrFail($id);
         $tutorial->delete();
 
         return redirect()->back()->with('success', 'Tutorial berhasil dihapus.');

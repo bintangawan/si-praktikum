@@ -2,20 +2,25 @@
 
 namespace App\Models;
 
+use App\Enums\UserRole;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\Attributes\Fillable;
 
-#[Fillable(['id', 'name', 'email', 'password', 'role', 'is_first_login', 'avatar'])]
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     use HasFactory, Notifiable;
 
-    // PENTING: Karena ID Anda adalah string(20)
     protected $primaryKey = 'id';
+
     public $incrementing = false;
+
     protected $keyType = 'string';
+
+    protected $fillable = ['id', 'name', 'email', 'password', 'role', 'is_first_login', 'avatar'];
 
     protected $hidden = ['password', 'remember_token'];
 
@@ -29,17 +34,18 @@ class User extends Authenticatable
     }
 
     // Relasi: Mahasiswa memiliki banyak kelas
-    public function courses()
+    public function courses(): BelongsToMany
     {
         return $this->belongsToMany(Course::class, 'course_user');
     }
 
-    public function attendances()
+    public function attendances(): HasMany
     {
-        return $this->hasMany(Attendance::class);
+        return $this->hasMany(Attendance::class, 'student_id');
     }
 
-    public function submissions() {
+    public function submissions(): HasMany
+    {
         return $this->hasMany(Submission::class, 'student_id');
     }
 
@@ -47,10 +53,34 @@ class User extends Authenticatable
      * Mendapatkan role yang sedang aktif digunakan saat ini.
      * Jika Aslab sedang ganti mode, ini akan membaca dari session.
      */
-
-    public function getActiveRoleAttribute()
+    public function getActiveRoleAttribute(): string
     {
-        // Mengambil dari session, jika tidak ada gunakan kolom 'role' asli
-        return session('active_role', $this->getRawOriginal('role'));
+        $storedRole = UserRole::normalize((string) $this->getRawOriginal('role'))?->value
+            ?? UserRole::MAHASISWA->value;
+        $sessionRole = UserRole::normalize(session('active_role'));
+
+        if ($storedRole === UserRole::ASLAB->value && $sessionRole === UserRole::MAHASISWA) {
+            return $sessionRole->value;
+        }
+
+        return $storedRole;
+    }
+
+    public function hasRole(UserRole|string ...$roles): bool
+    {
+        $actual = UserRole::normalize((string) $this->getRawOriginal('role'));
+
+        return collect($roles)->contains(
+            fn (UserRole|string $role) => $actual === ($role instanceof UserRole ? $role : UserRole::normalize($role))
+        );
+    }
+
+    public function hasActiveRole(UserRole|string ...$roles): bool
+    {
+        $actual = UserRole::normalize($this->active_role);
+
+        return collect($roles)->contains(
+            fn (UserRole|string $role) => $actual === ($role instanceof UserRole ? $role : UserRole::normalize($role))
+        );
     }
 }

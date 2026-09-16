@@ -3,156 +3,147 @@
 namespace App\Http\Controllers;
 
 use App\Exports\AttendanceReportExport;
+use App\Models\Attendance;
 use App\Models\Course;
 use App\Models\Meeting;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class AttendanceController extends Controller
 {
-    public function index(int|string $meeting_id): View
+    public function index(Request $request, Meeting $meeting): View
     {
-        $meeting = Meeting::with('course.students')->findOrFail($meeting_id);
-        
-        $existingAttendances = \App\Models\Attendance::where('meeting_id', $meeting_id)
-                                ->get()
-                                ->keyBy('student_id');
+        $this->authorize('manage', $meeting->course);
+        $meeting->load('course.students');
 
-        return view('attendance.index', compact('meeting', 'existingAttendances'));
+        return view('attendance.index', [
+            'meeting' => $meeting,
+            'existingAttendances' => $meeting->attendances()->get()->keyBy('student_id'),
+        ]);
     }
 
-    public function store(Request $request, int|string $meeting_id): RedirectResponse
+    public function store(Request $request, Meeting $meeting): RedirectResponse
     {
-        $request->validate([
-            'attendances' => 'required|array',
+        $this->authorize('manage', $meeting->course);
+        $validated = $request->validate([
+            'attendances' => ['required', 'array'],
+            'attendances.*' => ['required', Rule::in(['H', 'S', 'I', 'TK', 'Hadir', 'Sakit', 'Izin', 'Tanpa Keterangan', 'Alpha'])],
         ]);
 
-        $meeting = Meeting::findOrFail($meeting_id);
-        $today = now()->toDateString();
+        $enrolledIds = $meeting->course->students()->pluck('users.id')->map(fn ($id) => (string) $id);
+        $submittedIds = collect(array_keys($validated['attendances']))->map(fn ($id) => (string) $id);
 
-        foreach ($request->attendances as $studentId => $status) {
-            // Konversi nilai status jika dari form dikirim "Tanpa Keterangan"
-            $formattedStatus = match(strtoupper((string)$status)) {
-                'TANPA KETERANGAN', 'ALPHA', 'A' => 'TK', // Sesuaikan ke 'TK' atau 'Alpha'/ENUM di DB kamu
-                'HADIR' => 'Hadir',
-                'SAKIT' => 'Sakit',
-                'IZIN'  => 'Izin',
-                default => $status,
-            };
-
-            \App\Models\Attendance::query()->updateOrCreate(
-                [
-                    'meeting_id' => $meeting->id, 
-                    'student_id' => $studentId
-                ],
-                [
-                    'status'          => $formattedStatus,
-                    'attendance_date' => $today
-                ]
-            );
+        if ($submittedIds->diff($enrolledIds)->isNotEmpty()) {
+            abort(422, 'Data presensi memuat mahasiswa yang tidak terdaftar di kelas.');
         }
 
-        return redirect()->back()->with('success', 'Presensi berhasil diperbarui!');
+        if ($enrolledIds->diff($submittedIds)->isNotEmpty()) {
+            abort(422, 'Status presensi wajib diisi untuk seluruh mahasiswa di kelas.');
+        }
+
+        DB::transaction(function () use ($meeting, $validated): void {
+            foreach ($validated['attendances'] as $studentId => $status) {
+                Attendance::query()->updateOrCreate(
+                    ['meeting_id' => $meeting->id, 'student_id' => $studentId],
+                    ['status' => $this->normalizeStatus($status), 'attendance_date' => now()->toDateString()]
+                );
+            }
+        });
+
+        return back()->with('success', 'Presensi berhasil diperbarui.');
     }
 
-    public function report(int|string $course_id): View
+    public function report(Request $request, Course $course): View
     {
-        $course = Course::with(['students', 'meetings.attendances'])->findOrFail($course_id);
-        $reportData = $this->calculateAttendanceReport($course);
+        $this->authorize('manage', $course);
+        $data = $this->calculateAttendanceReport($course);
 
-        return view('attendance.report', [
-            'course'   => $course,
-            'meetings' => $reportData['meetings'],
-            'report'   => $reportData['report']
-        ]);
+        return view('attendance.report', ['course' => $course, ...$data]);
     }
 
-    public function exportPdf(int|string $course_id)
+    public function exportPdf(Request $request, Course $course)
     {
-        $course = Course::findOrFail($course_id);
-        $reportData = $this->calculateAttendanceReport($course);
+        $this->authorize('manage', $course);
+        $data = $this->calculateAttendanceReport($course);
 
-        $pdf = Pdf::loadView('attendance.report_pdf', [
-            'course'   => $course,
-            'meetings' => $reportData['meetings'],
-            'report'   => $reportData['report']
-        ])->setPaper('a4', 'landscape'); // Landscape agar kolom per-pertemuan muat dengan rapi
-
-        return $pdf->download('Rekap_Presensi_' . Str::slug($course->course_name) . '.pdf');
+        return Pdf::loadView('attendance.report_pdf', ['course' => $course, ...$data])
+            ->setPaper('a4', 'landscape')
+            ->download('Rekap_Presensi_'.Str::slug($course->course_name).'.pdf');
     }
 
-    public function exportExcel(int|string $course_id): BinaryFileResponse
+    public function exportExcel(Request $request, Course $course): BinaryFileResponse
     {
-        $course = Course::findOrFail($course_id);
-        $reportData = $this->calculateAttendanceReport($course);
+        $this->authorize('manage', $course);
+        $data = $this->calculateAttendanceReport($course);
 
         return Excel::download(
-            new AttendanceReportExport($course, $reportData['report'], $reportData['meetings']), 
-            'Rekap_Presensi_' . Str::slug($course->course_name) . '.xlsx'
+            new AttendanceReportExport($course, $data['report'], $data['meetings']),
+            'Rekap_Presensi_'.Str::slug($course->course_name).'.xlsx'
         );
     }
 
-    /**
-     * HELPER PRIVAT: Menghitung rekap presensi beserta rincian per-pertemuan
-     */
-    private function calculateAttendanceReport(Course $course)
+    /** @return array{meetings: Collection, report: Collection} */
+    private function calculateAttendanceReport(Course $course): array
     {
-        $meetings = $course->meetings()->orderBy('meeting_number', 'asc')->get();
-        $totalMeetings = $meetings->count();
+        $course->load(['students', 'meetings.attendances']);
+        $meetings = $course->meetings;
+        $conductedMeetings = $meetings->filter(fn ($meeting) => $meeting->attendances->isNotEmpty());
+        $attendanceByStudent = $meetings->flatMap->attendances->groupBy('student_id');
 
-        $report = $course->students->map(function ($student) use ($meetings, $totalMeetings) {
-            $attendances = \App\Models\Attendance::where('student_id', $student->id)
-                ->whereIn('meeting_id', $meetings->pluck('id'))
-                ->get()
-                ->keyBy('meeting_id');
-
-            $perMeetingStatus = [];
-            foreach ($meetings as $m) {
-                $statusObj = $attendances->get($m->id);
-                if ($statusObj) {
-                    $st = strtoupper((string)$statusObj->status);
-                    $perMeetingStatus[$m->id] = match($st) {
-                        'HADIR' => 'H',
-                        'SAKIT' => 'S',
-                        'IZIN'  => 'I',
-                        'TANPA KETERANGAN', 'ALPHA', 'TK', 'A' => 'TK', // Menghasilkan TK
-                        default => substr($st, 0, 1) ?: '-'
-                    };
-                } else {
-                    $perMeetingStatus[$m->id] = '-';
-                }
-            }
-
-            $hadir = (int) $attendances->filter(fn($a) => in_array(strtolower((string)$a->status), ['hadir', 'h']))->count();
-            $sakit = (int) $attendances->filter(fn($a) => in_array(strtolower((string)$a->status), ['sakit', 's']))->count();
-            $izin  = (int) $attendances->filter(fn($a) => in_array(strtolower((string)$a->status), ['izin', 'i']))->count();
-            $alpha = (int) $attendances->filter(fn($a) => in_array(strtolower((string)$a->status), ['tanpa keterangan', 'alpha', 'tk', 'a']))->count();
-
-            $percentage = $totalMeetings > 0 
-                ? (int) round(($hadir / $totalMeetings) * 100) 
-                : 0;
+        $report = $course->students->map(function ($student) use ($meetings, $conductedMeetings, $attendanceByStudent) {
+            $attendances = $attendanceByStudent->get((string) $student->id, collect())->keyBy('meeting_id');
+            $perMeeting = $meetings->mapWithKeys(fn ($meeting) => [
+                $meeting->id => $attendances->has($meeting->id)
+                    ? $this->statusCode($attendances->get($meeting->id)->status)
+                    : ($meeting->attendances->isNotEmpty() ? 'TK' : '-'),
+            ])->all();
+            $codes = $conductedMeetings->map(fn ($meeting) => $attendances->has($meeting->id)
+                ? $this->statusCode($attendances->get($meeting->id)->status)
+                : 'TK');
+            $hadir = $codes->filter(fn ($status) => $status === 'H')->count();
+            $total = $conductedMeetings->count();
 
             return (object) [
-                'id'                 => $student->id,
-                'name'               => $student->name,
-                'per_meeting_status' => $perMeetingStatus,
-                'hadir'              => $hadir,
-                'sakit'              => $sakit,
-                'izin'               => $izin,
-                'alpha'              => $alpha,
-                'total_pertemuan'    => $totalMeetings,
-                'percentage'         => $percentage,
+                'id' => $student->id,
+                'name' => $student->name,
+                'per_meeting_status' => $perMeeting,
+                'hadir' => $hadir,
+                'sakit' => $codes->filter(fn ($status) => $status === 'S')->count(),
+                'izin' => $codes->filter(fn ($status) => $status === 'I')->count(),
+                'alpha' => $codes->filter(fn ($status) => $status === 'TK')->count(),
+                'total_pertemuan' => $total,
+                'percentage' => $total > 0 ? (int) round($hadir / $total * 100) : 0,
             ];
         });
 
-        return [
-            'meetings' => $meetings,
-            'report'   => $report
-        ];
+        return compact('meetings', 'report');
+    }
+
+    private function normalizeStatus(string $status): string
+    {
+        return match (strtoupper(trim($status))) {
+            'H', 'HADIR' => 'Hadir',
+            'S', 'SAKIT' => 'Sakit',
+            'I', 'IZIN' => 'Izin',
+            default => 'Tanpa Keterangan',
+        };
+    }
+
+    private function statusCode(string $status): string
+    {
+        return match (strtoupper(trim($status))) {
+            'H', 'HADIR' => 'H',
+            'S', 'SAKIT' => 'S',
+            'I', 'IZIN' => 'I',
+            default => 'TK',
+        };
     }
 }

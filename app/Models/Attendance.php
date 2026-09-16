@@ -10,8 +10,13 @@ class Attendance extends Model
         'meeting_id',
         'student_id',
         'status',
-        'attendance_date'
+        'attendance_date',
     ];
+
+    protected function casts(): array
+    {
+        return ['attendance_date' => 'date'];
+    }
 
     // Relasi ke Pertemuan
     public function meeting()

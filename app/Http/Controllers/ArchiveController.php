@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Course;
 use App\Models\Semester;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class ArchiveController extends Controller
@@ -12,7 +11,7 @@ class ArchiveController extends Controller
     public function index()
     {
         $user = Auth::user();
-        $role = strtoupper($user->role);
+        $role = strtoupper($user->active_role);
 
         // Ambil semua semester yang TIDAK aktif (Arsip)
         $archivedSemesters = Semester::where('is_active', false)->pluck('id');
@@ -23,8 +22,8 @@ class ArchiveController extends Controller
         } else {
             // Query dasar: Hanya ambil course dari semester arsip
             $query = Course::with(['dosen', 'aslab', 'laboran', 'semester'])
-                           ->whereIn('semester_id', $archivedSemesters)
-                           ->latest();
+                ->whereIn('semester_id', $archivedSemesters)
+                ->latest();
 
             // Filter berdasarkan Role (Sama seperti di Dashboard)
             if ($role === 'MAHASISWA') {
@@ -39,11 +38,11 @@ class ArchiveController extends Controller
             } elseif ($role === 'LABORAN') {
                 // Laboran melihat kelas yang di-assign ke mereka, ATAU semua kelas (tergantung aturan kampusmu)
                 // Jika laboran bisa lihat semua, jangan tambah kondisi ini.
-                $query->where('laboran_id', $user->id); 
+                $query->where('laboran_id', $user->id);
             }
 
             // Dapatkan hasil dan kelompokkan berdasarkan nama semester agar rapi di UI
-            $courses = $query->get()->groupBy(function($data) {
+            $courses = $query->get()->groupBy(function ($data) {
                 return $data->semester->name;
             });
         }

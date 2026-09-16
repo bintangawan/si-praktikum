@@ -2,83 +2,64 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\UserRole;
 use App\Models\Course;
 use App\Models\Meeting;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
 class MeetingController extends Controller
 {
-    
-    public function show($id)
+    public function show(Request $request, Course $course): View
     {
-        // 1. Ambil data course beserta relasinya dalam SATU query saja
-        // Kita tambahkan 'meetings.attendances' dengan filter agar hanya mengambil absen milik user yang sedang login
-        $course = Course::with([
-            'laboran', 
-            'dosen', 
-            'aslab', 
-            'meetings.attendances' => function($query) {
-                $query->where('student_id', Auth::id());
-            }
-        ])->findOrFail($id);
+        $this->authorize('view', $course);
+        $course->load(['laboran', 'dosen', 'aslab', 'semester', 'finalTask']);
+        $studentId = $request->user()->hasActiveRole(UserRole::MAHASISWA) ? $request->user()->id : null;
 
-        // 2. Cek Akses khusus Mahasiswa
-        if (Auth::user()->role === 'Mahasiswa') {
-            $isEnrolled = Auth::user()->courses()->where('course_id', $id)->exists();
-            if (!$isEnrolled) {
-                abort(403, 'Anda belum terdaftar di kelas ini.');
-            }
+        $course->load(['meetings' => function ($query) use ($studentId) {
+            $query->withCount('attendances')
+                ->with([
+                    'attendances' => fn ($relation) => $studentId ? $relation->where('student_id', $studentId) : $relation,
+                    'submissions' => fn ($relation) => $studentId ? $relation->where('student_id', $studentId) : $relation,
+                ]);
+        }]);
+
+        if ($course->finalTask) {
+            $course->finalTask->load(['submissions' => fn ($query) => $studentId ? $query->where('student_id', $studentId) : $query]);
         }
 
         return view('courses.show', compact('course'));
     }
 
-    // Fungsi store yang sudah kita buat sebelumnya
-    public function store(Request $request, $course_id)
+    public function store(Request $request, Course $course): RedirectResponse
     {
-        $request->validate([
-            'meeting_number' => 'required|integer|min:1|max:16',
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'module_drive_link' => 'nullable|url',
-            'deadline' => 'nullable|date',
+        $this->authorize('manage', $course);
+        $validated = $request->validate([
+            'meeting_number' => ['required', 'integer', 'min:1', 'max:16', Rule::unique('meetings')->where('course_id', $course->id)],
+            'title' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'module_drive_link' => ['nullable', 'url', 'max:2048'],
+            'deadline' => ['nullable', 'date'],
         ]);
 
-        $exists = Meeting::where('course_id', $course_id)
-                         ->where('meeting_number', $request->meeting_number)
-                         ->exists();
+        $course->meetings()->create($validated);
 
-        if ($exists) {
-            return redirect()->back()->with('error', 'Pertemuan ke-' . $request->meeting_number . ' sudah ada.');
-        }
-
-        Meeting::create([
-            'course_id' => $course_id,
-            'meeting_number' => $request->meeting_number,
-            'title' => $request->title,
-            'description' => $request->description,
-            'module_drive_link' => $request->module_drive_link,
-            'deadline' => $request->deadline,
-        ]);
-
-        return redirect()->back()->with('success', 'Pertemuan berhasil ditambahkan!');
+        return back()->with('success', 'Pertemuan berhasil ditambahkan.');
     }
 
-    public function update(Request $request, Meeting $meeting)
+    public function update(Request $request, Meeting $meeting): RedirectResponse
     {
-        $request->validate([
-            'title' => 'required|string|max:255',
-            'description' => 'nullable|string',
-            'module_drive_link' => 'nullable|url',
+        $this->authorize('manage', $meeting->course);
+        $validated = $request->validate([
+            'title' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string'],
+            'module_drive_link' => ['nullable', 'url', 'max:2048'],
         ]);
 
-        $meeting->update([
-            'title' => $request->title,
-            'description' => $request->description,
-            'module_drive_link' => $request->module_drive_link,
-        ]);
+        $meeting->update($validated);
 
-        return back()->with('success', 'Data pertemuan berhasil diperbarui!');
+        return back()->with('success', 'Data pertemuan berhasil diperbarui.');
     }
 }

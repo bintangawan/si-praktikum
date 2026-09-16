@@ -2,31 +2,46 @@
 
 namespace App\Imports;
 
+use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
+use Maatwebsite\Excel\Concerns\SkipsEmptyRows;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
-use Maatwebsite\Excel\Concerns\SkipsEmptyRows;
 
-class UserImport implements ToModel, WithHeadingRow, SkipsEmptyRows
+class UserImport implements SkipsEmptyRows, ToModel, WithHeadingRow
 {
     // Properti untuk menampung laporan progres import
     public $successCount = 0;
+
     public $failMessages = [];
+
     public $successMessages = [];
 
     public function model(array $row)
     {
-        // 1. LOGIKA VALIDASI: Skip jika kolom ID di excel kosong
-        if (!isset($row['id']) || empty($row['id'])) {
+        $id = trim((string) ($row['id'] ?? ''));
+        $email = Str::lower(trim((string) ($row['email'] ?? '')));
+        $name = trim((string) ($row['name'] ?? ''));
+        $role = UserRole::normalize((string) ($row['role'] ?? ''));
+        $validator = Validator::make(
+            compact('id', 'email', 'name', 'role'),
+            [
+                'id' => ['required', 'string', 'max:20'],
+                'email' => ['required', 'email', 'max:255'],
+                'name' => ['required', 'string', 'max:255'],
+                'role' => ['required'],
+            ]
+        );
+
+        if ($validator->fails()) {
+            $label = $id !== '' ? $id : 'tanpa ID';
+            $this->failMessages[] = "Baris {$label} dilewati: ".$validator->errors()->first();
+
             return null;
         }
-
-        // Ambil data dari baris excel berdasarkan header kolomnya
-        $id = $row['id'];
-        $email = $row['email'];
-        $name = $row['name'] ?? 'No Name';
 
         // 2. LOGIKA DUPLIKASI: Cek apakah ID atau Email sudah terdaftar di database
         $existingUser = User::where('id', $id)->orWhere('email', $email)->first();
@@ -34,25 +49,23 @@ class UserImport implements ToModel, WithHeadingRow, SkipsEmptyRows
         if ($existingUser) {
             // Jika data sudah ada, catat pesan gagal dan hentikan proses untuk baris ini
             $this->failMessages[] = "Baris ID {$id} ({$name}) gagal: ID atau Email sudah terdaftar.";
-            return null; 
-        }
 
-        // 3. LOGIKA ROLE: Membersihkan penulisan role (contoh: "admin " -> "Admin")
-        $roleClean = Str::ucfirst(strtolower(trim($row['role'])));
+            return null;
+        }
 
         // 4. PEMBUATAN USER: Membuat instance model User baru
         $user = new User([
-            'id'             => $id,
-            'name'           => $name,
-            'email'          => $email,
-            
+            'id' => $id,
+            'name' => $name,
+            'email' => $email,
+
             /* PERUBAHAN DI SINI:
-               Password tidak lagi mengambil dari $row['password'], 
+               Password tidak lagi mengambil dari $row['password'],
                tapi langsung menggunakan nilai dari variabel $id.
             */
-            'password'       => Hash::make($id), 
-            
-            'role'           => $roleClean,
+            'password' => Hash::make($id),
+
+            'role' => $role->value,
             'is_first_login' => true,
         ]);
 

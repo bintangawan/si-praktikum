@@ -21,7 +21,7 @@
                                 @if(strtoupper(auth()->user()->active_role) === 'MAHASISWA')
                                     @php 
                                         $attendance = $meeting->attendances->where('student_id', auth()->id())->first(); 
-                                        $anyAbsen = $meeting->attendances->count() > 0; 
+                                        $anyAbsen = $meeting->attendances_count > 0;
                                         
                                         if ($attendance) {
                                             $attStatus = strtoupper($attendance->status);

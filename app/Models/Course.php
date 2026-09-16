@@ -14,7 +14,7 @@ class Course extends Model
         'dosen_id',
         'laboran_id',
         'aslab_id',
-        'enrollment_code'
+        'enrollment_code',
     ];
 
     // Relasi ke Semester

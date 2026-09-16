@@ -32,7 +32,7 @@ class Tutorial extends Model
             // Ekstrak ID YouTube dari berbagai format URL (watch, share, short)
             preg_match('%(?:youtube(?:-nocookie)?\.com/(?:[^/]+/.+/|(?:v|e(?:mbed)?)/|.*[?&]v=)|youtu\.be/)([^"&?/ ]{11})%i', $this->url, $match);
             $youtubeId = $match[1] ?? null;
-            
+
             return $youtubeId ? "https://www.youtube.com/embed/{$youtubeId}" : $this->url;
         }
 
@@ -41,8 +41,8 @@ class Tutorial extends Model
             if (str_contains($this->url, '/view')) {
                 return str_replace('/view', '/preview', $this->url);
             }
-            if (!str_contains($this->url, '/preview')) {
-                return rtrim($this->url, '/') . '/preview';
+            if (! str_contains($this->url, '/preview')) {
+                return rtrim($this->url, '/').'/preview';
             }
         }
 

@@ -17,7 +17,7 @@ return new class extends Migration
             $table->text('description')->nullable();
             $table->enum('type', ['youtube', 'gdrive_pdf']);
             $table->text('url');
-            
+
             // Disesuaikan dengan id tabel users: VARCHAR(20)
             $table->string('created_by', 20);
             $table->foreign('created_by')->references('id')->on('users')->onDelete('cascade');

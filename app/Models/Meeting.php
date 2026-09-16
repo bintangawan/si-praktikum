@@ -12,8 +12,13 @@ class Meeting extends Model
         'title',
         'description',
         'module_drive_link',
-        'deadline'
+        'deadline',
     ];
+
+    protected function casts(): array
+    {
+        return ['deadline' => 'datetime'];
+    }
 
     // Relasi: Pertemuan milik sebuah Kelas
     public function course()

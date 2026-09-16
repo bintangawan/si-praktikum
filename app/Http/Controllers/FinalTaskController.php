@@ -2,290 +2,224 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\SubmissionStatus;
+use App\Enums\UserRole;
+use App\Models\Course;
 use App\Models\FinalTask;
 use App\Models\Submission;
 use App\Models\SubmissionHistory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class FinalTaskController extends Controller
 {
-    /**
-     * TAMPILAN REVIEWER: Daftar pengumpulan mahasiswa per tugas final
-     */
-    public function index(int|string $final_task_id): View
+    public function index(Request $request, FinalTask $finalTask): View
     {
-        $finalTask = FinalTask::with('course.students')->findOrFail($final_task_id);
-        
-        $submissions = Submission::where('final_task_id', $final_task_id)
-                        ->where('is_final', true)
-                        ->with('histories')
-                        ->get()
-                        ->keyBy('student_id');
+        $this->authorize('manage', $finalTask->course);
+        $finalTask->load('course.students');
 
-        return view('final-tasks.index', compact('finalTask', 'submissions'));
+        return view('final-tasks.index', [
+            'finalTask' => $finalTask,
+            'submissions' => $finalTask->submissions()->where('is_final', true)->with('histories')->get()->keyBy('student_id'),
+        ]);
     }
 
-    /**
-     * SIMPAN / UPDATE TUGAS FINAL (Membuat wadah tugas final baru untuk Course)
-     */
-    public function store(Request $request, int|string $course_id): RedirectResponse
+    public function store(Request $request, Course $course): RedirectResponse
     {
-        $request->validate([
-            'description' => 'nullable|string',
-            'deadline'    => 'nullable|date',
+        $this->authorize('manage', $course);
+        $validated = $request->validate([
+            'description' => ['required', 'string', 'max:10000'],
+            'deadline' => ['nullable', 'date'],
         ]);
 
-        // Menggunakan FinalTask::query() memutus salah paham stubs di Intelephense
-        FinalTask::query()->updateOrCreate(
-            ['course_id' => $course_id],
-            [
-                'description' => $request->description,
-                'deadline'    => $request->deadline,
-            ]
-        );
+        $course->finalTask()->updateOrCreate([], $validated);
 
-        return redirect()->back()->with('success', 'Tugas Final berhasil diperbarui!');
+        return back()->with('success', 'Tugas final berhasil diperbarui.');
     }
 
-    /**
-     * PROSES MAHASISWA: Simpan Tugas Baru
-     */
-    public function submit(Request $request, int|string $final_task_id): RedirectResponse
+    public function submit(Request $request, FinalTask $finalTask): RedirectResponse
     {
-        $request->validate([
-            'submission_link' => 'required|url',
-        ]);
+        $this->authorize('participate', $finalTask->course);
+        $validated = $this->validateSubmission($request);
+        $existing = $finalTask->submissions()
+            ->where('student_id', $request->user()->id)
+            ->where('is_final', true)
+            ->first();
 
-        $finalTask = FinalTask::findOrFail($final_task_id);
-
-        if ($finalTask->deadline && now()->gt($finalTask->deadline)) {
-            return back()->with('error', 'Waktu pengumpulan sudah ditutup.');
+        if ($existing) {
+            return $this->update($request, $existing);
         }
 
-        /** @var Submission|null $submission */
-        $submission = Submission::where('final_task_id', $final_task_id)
-                                ->where('student_id', Auth::id())
-                                ->where('is_final', true)
-                                ->first();
-
-        // Jika sudah ada record, alihkan ke fungsi update
-        if ($submission) {
-            return $this->update($request, $submission->id);
+        if ($finalTask->deadline && now()->isAfter($finalTask->deadline)) {
+            return back()->withInput()->with('error', 'Waktu pengumpulan sudah ditutup.');
         }
 
-        $now = now();
-
-        Submission::create([
-            'final_task_id'   => $final_task_id,
-            'student_id'      => Auth::id(),
-            'submission_link' => $request->submission_link,
-            'notes'           => $request->notes,
-            'is_final'        => true,
-            'first_upload_at' => $now,
-            'last_upload_at'  => $now,
-            'aslab_status'    => 'PENDING',
-            'laboran_status'  => 'PENDING',
-            'dosen_status'    => 'PENDING',
-            'is_completed'    => false,
-        ]);
-
-        return redirect()->route('courses.show', $finalTask->course_id)
-                         ->with('success', 'Laprak Final berhasil dikumpulkan.');
-    }
-
-    /**
-     * PROSES MAHASISWA: Update atau Kirim Revisi
-     */
-    public function update(Request $request, int|string $id): RedirectResponse
-    {
-        $request->validate([
-            'submission_link' => 'required|url',
-        ]);
-
-        /** @var Submission $submission */
-        $submission = Submission::with('finalTask')->where('id', $id)
-                                ->where('student_id', Auth::id())
-                                ->firstOrFail();
-
-        // LOGIKA: Jika sudah ACC, pertahankan. Jika REVISI/PENDING, ubah jadi PENDING.
-        $newAslabStatus   = (strtoupper((string) $submission->aslab_status) === 'ACC') ? 'ACC' : 'PENDING';
-        $newLaboranStatus = (strtoupper((string) $submission->laboran_status) === 'ACC') ? 'ACC' : 'PENDING';
-        $newDosenStatus   = (strtoupper((string) $submission->dosen_status) === 'ACC') ? 'ACC' : 'PENDING';
-
-        /** @var \Illuminate\Database\Eloquent\Model $submissionModel */
-        $submissionModel = $submission;
-        $submissionModel->update([
-            'submission_link' => $request->submission_link,
-            'notes'           => $request->notes,
-            'aslab_status'    => $newAslabStatus,
-            'laboran_status'  => $newLaboranStatus,
-            'dosen_status'    => $newDosenStatus,
-            'last_upload_at'  => now(),
-        ]);
-
-        return redirect()->route('courses.show', $submission->finalTask->course_id)
-                         ->with('success', 'Tugas perbaikan berhasil dikirim.');
-    }
-
-    /**
-     * PROSES REVIEWER: Memberi ACC atau REVISI
-     */
-    public function approve(Request $request, int|string $id): mixed
-    {
-        $statusInput = strtoupper((string) $request->status);
-
-        $request->validate([
-            'status' => 'required|in:ACC,REVISI',
-            'notes'  => 'required_if:status,REVISI|nullable|string'
-        ]);
-
-        return DB::transaction(function () use ($request, $id, $statusInput) {
-            /** @var Submission $submission */
-            $submission = Submission::lockForUpdate()->findOrFail($id);
-            $user = $request->user();
-            $now = now();
-            
-            $role = strtoupper((string) ($user->active_role ?? $user->role));
-
-            $currentStatus = match($role) {
-                'ASLAB'   => strtoupper((string) $submission->aslab_status),
-                'LABORAN' => strtoupper((string) $submission->laboran_status),
-                'DOSEN'   => strtoupper((string) $submission->dosen_status),
-                default   => ''
-            };
-
-            if ($currentStatus === $statusInput && $statusInput === 'REVISI') {
-                return redirect()->back()->with('info', "Status sudah ditandai sebagai REVISI.");
-            }
-
-            if ($role === 'ASLAB') {
-                if ($statusInput === 'ACC') {
-                    $submission->aslab_status = 'ACC';
-                    $submission->aslab_acc_at = $now;
-                } else {
-                    $this->createHistory($submission, $request->notes);
-                    $submission->aslab_status = 'REVISI';
-                    $submission->aslab_acc_at = null;
-                    $submission->laboran_status = 'PENDING';
-                    $submission->laboran_acc_at = null;
-                    $submission->dosen_status = 'PENDING';
-                    $submission->dosen_acc_at = null;
-                }
-            } elseif ($role === 'LABORAN') {
-                if (strtoupper((string) $submission->aslab_status) !== 'ACC') {
-                    return back()->with('error', 'Menunggu verifikasi Asisten Laboratorium.');
-                }
-
-                if ($statusInput === 'ACC') {
-                    $submission->laboran_status = 'ACC';
-                    $submission->laboran_acc_at = $now;
-                } else {
-                    $this->createHistory($submission, $request->notes);
-                    $submission->laboran_status = 'REVISI';
-                    $submission->laboran_acc_at = null;
-                    $submission->dosen_status = 'PENDING';
-                    $submission->dosen_acc_at = null;
-                }
-            } elseif ($role === 'DOSEN') {
-                if (strtoupper((string) $submission->aslab_status) !== 'ACC' || strtoupper((string) $submission->laboran_status) !== 'ACC') {
-                    return back()->with('error', 'Menunggu verifikasi Aslab & Laboran.');
-                }
-
-                if ($statusInput === 'ACC') {
-                    $submission->laboran_status = 'ACC';
-                    $submission->laboran_acc_at = $now;
-                    
-                    // TAMBAHKAN BARIS INI JIKA INGIN DOSEN OTOMATIS ACC:
-                    $submission->dosen_status = 'ACC';
-                    $submission->dosen_acc_at = $now;
-                } else {
-                    $this->createHistory($submission, $request->notes);
-                    $submission->dosen_status = 'REVISI';
-                    $submission->dosen_acc_at = null;
-                }
-            }
-
-            $submission->is_completed = (
-                strtoupper((string) $submission->aslab_status) === 'ACC' && 
-                strtoupper((string) $submission->laboran_status) === 'ACC' && 
-                strtoupper((string) $submission->dosen_status) === 'ACC'
-            );
-
-            $submission->save();
-
-            return redirect()->back()->with('success', "Status berhasil diupdate menjadi $statusInput");
+        DB::transaction(function () use ($finalTask, $request, $validated): void {
+            $submission = $finalTask->submissions()->create([
+                'student_id' => $request->user()->id,
+                'submission_link' => $validated['submission_link'],
+                'notes' => $validated['notes'] ?? null,
+                'is_final' => true,
+                'first_upload_at' => now(),
+                'last_upload_at' => now(),
+                'aslab_status' => SubmissionStatus::PENDING->value,
+                'laboran_status' => SubmissionStatus::PENDING->value,
+                'dosen_status' => SubmissionStatus::PENDING->value,
+                'is_completed' => false,
+            ]);
+            $this->recordHistory($submission, 'Upload');
         });
+
+        return redirect()->route('courses.show', $finalTask->course_id)->with('success', 'Laporan final berhasil dikumpulkan.');
     }
 
-    public function handler(int|string $id): View
+    public function update(Request $request, Submission $submission): RedirectResponse
     {
-        $submission = Submission::with(['student', 'histories'])->findOrFail($id);
-        $finalTask = $submission->finalTask;
-        return view('final-tasks.handler', compact('submission', 'finalTask'));
+        abort_unless($submission->is_final, 404);
+        $submission->loadMissing('finalTask.course');
+        $this->authorize('update', $submission);
+        $validated = $this->validateSubmission($request);
+        $isRevision = collect([$submission->aslab_status, $submission->laboran_status, $submission->dosen_status])
+            ->contains(SubmissionStatus::REVISION->value);
+
+        if (! $isRevision && $submission->finalTask->deadline && now()->isAfter($submission->finalTask->deadline)) {
+            return back()->withInput()->with('error', 'Waktu pengumpulan sudah ditutup.');
+        }
+
+        DB::transaction(function () use ($submission, $validated): void {
+            $locked = Submission::query()->whereKey($submission->id)->lockForUpdate()->firstOrFail();
+            $locked->update([
+                'submission_link' => $validated['submission_link'],
+                'notes' => $validated['notes'] ?? null,
+                'aslab_status' => $locked->aslab_status === SubmissionStatus::APPROVED->value ? SubmissionStatus::APPROVED->value : SubmissionStatus::PENDING->value,
+                'laboran_status' => $locked->laboran_status === SubmissionStatus::APPROVED->value ? SubmissionStatus::APPROVED->value : SubmissionStatus::PENDING->value,
+                'dosen_status' => SubmissionStatus::PENDING->value,
+                'dosen_acc_at' => null,
+                'is_completed' => false,
+                'last_upload_at' => now(),
+            ]);
+            $this->recordHistory($locked, 'Revision');
+        });
+
+        return redirect()->route('courses.show', $submission->finalTask->course_id)->with('success', 'Perbaikan laporan final berhasil dikirim.');
     }
 
-    public function manage(int|string $id): View
+    public function approve(Request $request, Submission $submission): RedirectResponse
     {
-        $finalTask = FinalTask::with('course')->findOrFail($id);
-        $submission = Submission::where('final_task_id', $id)
-                                ->where('student_id', Auth::id())
-                                ->where('is_final', true)
-                                ->first();
-        $histories = $submission ? $submission->histories()->orderBy('created_at', 'desc')->get() : collect();
-        return view('mahasiswa.final-tasks.handler', compact('finalTask', 'submission', 'histories'));
-    }
-
-    /**
-     * UPDATE DEADLINE
-     */
-    public function updateDeadline(Request $request, int|string $id): RedirectResponse
-    {
-        $request->validate([
-            'deadline' => 'required|date' 
+        abort_unless($submission->is_final, 404);
+        $submission->loadMissing('finalTask.course');
+        $this->authorize('review', $submission);
+        $validated = $request->validate([
+            'status' => ['required', Rule::in(['ACC', 'REVISI'])],
+            'notes' => ['nullable', 'string', 'max:5000', 'required_if:status,REVISI'],
         ]);
-        
-        $finalTask = FinalTask::findOrFail($id);
+        $status = $validated['status'] === 'ACC' ? SubmissionStatus::APPROVED : SubmissionStatus::REVISION;
+        $role = UserRole::normalize($request->user()->active_role);
 
-        /** @var \Illuminate\Database\Eloquent\Model $finalTaskModel */
-        $finalTaskModel = $finalTask;
-        $finalTaskModel->update(['deadline' => $request->deadline]);
-        
-        return redirect()->back()->with('success', 'Deadline diperbarui!');
+        DB::transaction(function () use ($submission, $validated, $status, $role): void {
+            $locked = Submission::query()->whereKey($submission->id)->lockForUpdate()->firstOrFail();
+
+            if ($role === UserRole::ASLAB) {
+                $locked->aslab_status = $status->value;
+                $locked->aslab_acc_at = $status === SubmissionStatus::APPROVED ? now() : null;
+                if ($status === SubmissionStatus::REVISION) {
+                    $locked->laboran_status = SubmissionStatus::PENDING->value;
+                    $locked->laboran_acc_at = null;
+                    $locked->dosen_status = SubmissionStatus::PENDING->value;
+                    $locked->dosen_acc_at = null;
+                }
+            } elseif ($role === UserRole::LABORAN) {
+                abort_unless($locked->aslab_status === SubmissionStatus::APPROVED->value, 422, 'Menunggu verifikasi Aslab.');
+                $locked->laboran_status = $status->value;
+                $locked->laboran_acc_at = $status === SubmissionStatus::APPROVED ? now() : null;
+                if ($status === SubmissionStatus::REVISION) {
+                    $locked->dosen_status = SubmissionStatus::PENDING->value;
+                    $locked->dosen_acc_at = null;
+                }
+            } elseif ($role === UserRole::DOSEN) {
+                abort_unless(
+                    $locked->aslab_status === SubmissionStatus::APPROVED->value
+                    && $locked->laboran_status === SubmissionStatus::APPROVED->value,
+                    422,
+                    'Menunggu verifikasi Aslab dan Laboran.'
+                );
+                $locked->dosen_status = $status->value;
+                $locked->dosen_acc_at = $status === SubmissionStatus::APPROVED ? now() : null;
+            } else {
+                abort(403);
+            }
+
+            $locked->is_completed = $locked->aslab_status === SubmissionStatus::APPROVED->value
+                && $locked->laboran_status === SubmissionStatus::APPROVED->value
+                && $locked->dosen_status === SubmissionStatus::APPROVED->value;
+            $locked->save();
+            $this->recordHistory($locked, $status === SubmissionStatus::APPROVED ? 'ACC' : 'Revision', $validated['notes'] ?? null);
+        });
+
+        return back()->with('success', "Status {$validated['status']} berhasil disimpan.");
     }
 
-    /**
-     * HELPER: Simpan Riwayat
-     */
-    private function createHistory(Submission $submission, ?string $notes): SubmissionHistory
+    public function handler(Request $request, Submission $submission): View
     {
-        return SubmissionHistory::create([
-            'submission_id' => $submission->id,
-            'drive_link'    => $submission->submission_link,
-            'feedback'      => $notes,
-            'iteration'     => $submission->histories()->count() + 1,
-            'reviewed_by'   => Auth::id(),
+        abort_unless($submission->is_final, 404);
+        $submission->loadMissing('finalTask.course');
+        $this->authorize('review', $submission);
+        $submission->load(['student', 'histories.reviewer']);
+
+        return view('final-tasks.handler', ['submission' => $submission, 'finalTask' => $submission->finalTask]);
+    }
+
+    public function manage(Request $request, FinalTask $finalTask): View
+    {
+        $this->authorize('participate', $finalTask->course);
+        $submission = $finalTask->submissions()
+            ->where('student_id', $request->user()->id)
+            ->where('is_final', true)
+            ->with('histories.reviewer')
+            ->first();
+
+        return view('mahasiswa.final-tasks.handler', [
+            'finalTask' => $finalTask,
+            'submission' => $submission,
+            'histories' => $submission?->histories ?? collect(),
         ]);
     }
 
-    /**
-     * Update hanya deskripsi tugas final.
-     */
+    public function updateDeadline(Request $request, FinalTask $finalTask): RedirectResponse
+    {
+        $this->authorize('manage', $finalTask->course);
+        $finalTask->update($request->validate(['deadline' => ['required', 'date']]));
+
+        return back()->with('success', 'Deadline diperbarui.');
+    }
+
     public function updateDescription(Request $request, FinalTask $finalTask): RedirectResponse
     {
-        $request->validate([
-            'description' => 'required|string',
-        ]);
+        $this->authorize('manage', $finalTask->course);
+        $finalTask->update($request->validate(['description' => ['required', 'string', 'max:10000']]));
 
-        /** @var \Illuminate\Database\Eloquent\Model $finalTaskModel */
-        $finalTaskModel = $finalTask;
-        $finalTaskModel->update([
-            'description' => $request->description,
-        ]);
+        return back()->with('success', 'Deskripsi laporan final berhasil diperbarui.');
+    }
 
-        return back()->with('success', 'Deskripsi laporan final berhasil diperbarui!');
+    private function validateSubmission(Request $request): array
+    {
+        return $request->validate([
+            'submission_link' => ['required', 'url', 'max:2048'],
+            'notes' => ['nullable', 'string', 'max:5000'],
+        ]);
+    }
+
+    private function recordHistory(Submission $submission, string $action, ?string $feedback = null): SubmissionHistory
+    {
+        return $submission->histories()->create([
+            'drive_link' => $submission->submission_link,
+            'iteration' => $submission->histories()->max('iteration') + 1,
+            'feedback' => $feedback,
+            'action_type' => $action,
+            'reviewed_by' => in_array($action, ['Upload', 'Revision'], true) && $feedback === null ? null : auth()->id(),
+        ]);
     }
 }

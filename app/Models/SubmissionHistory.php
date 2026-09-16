@@ -12,7 +12,7 @@ class SubmissionHistory extends Model
         'iteration',
         'feedback',
         'action_type',
-        'reviewed_by'
+        'reviewed_by',
     ];
 
     // Relasi kembali ke induknya

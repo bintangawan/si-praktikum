@@ -54,9 +54,10 @@
 
         @if(strtoupper(auth()->user()->active_role) === 'MAHASISWA')
             @php
-                $totalMeetings = $course->meetings->count();
+                $conductedMeetings = $course->meetings->filter(fn($meeting) => $meeting->attendances_count > 0);
+                $totalMeetings = $conductedMeetings->count();
                 $hadirCount = 0;
-                foreach($course->meetings as $mtg) {
+                foreach($conductedMeetings as $mtg) {
                     $att = $mtg->attendances->where('student_id', auth()->id())->first();
                     if($att && in_array(strtoupper($att->status), ['HADIR', 'H'])) {
                         $hadirCount++;
@@ -92,13 +93,15 @@
             </div>
         @endif
 
-        {{-- Tombol Peserta Kelas --}}
-        <div class="{{ strtoupper(auth()->user()->active_role) === 'MAHASISWA' ? 'mt-4' : 'mt-3' }}">
-            <a href="{{ route('courses.students', $course->id) }}" class="w-full flex items-center justify-center gap-2 px-4 py-4 bg-slate-50 text-slate-700 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition border border-slate-200 shadow-sm">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-                Peserta Kelas
-            </a>
-        </div>
+        {{-- Daftar peserta hanya tersedia untuk pengelola kelas. --}}
+        @if(in_array(strtoupper(auth()->user()->active_role), ['ASLAB', 'LABORAN', 'DOSEN']))
+            <div class="mt-3">
+                <a href="{{ route('courses.students', $course->id) }}" class="w-full flex items-center justify-center gap-2 px-4 py-4 bg-slate-50 text-slate-700 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition border border-slate-200 shadow-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-6-6zM13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    Peserta Kelas
+                </a>
+            </div>
+        @endif
 
         {{-- TOMBOL CETAK KARTU PRAKTIKUM (Khusus Mahasiswa) --}}
         @if(strtoupper(auth()->user()->active_role) === 'MAHASISWA')

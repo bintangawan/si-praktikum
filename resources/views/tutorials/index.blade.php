@@ -80,7 +80,7 @@
                 <option value="gdrive_pdf" {{ request('type') === 'gdrive_pdf' ? 'selected' : '' }}>Google Drive (PDF)</option>
             </select>
 
-            <button type="submit" class="px-4 py-2 bg-amber-500 text-slate-900 text-xs font-black rounded-xl hover:bg-amber-400 transition shadow-xs flex items-center gap-1 shrink-0">
+            <button type="submit" class="px-4 py-2 bg-amber-500 text-slate-900 text-xs font-black rounded-xl hover:bg-amber-400 transition shadow-sm flex items-center gap-1 shrink-0">
                 Cari
             </button>
 

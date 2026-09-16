@@ -13,13 +13,21 @@ class UserSeeder extends Seeder
      */
     public function run(): void // <--- Pastikan namanya "run"
     {
-        // 1. Akun Laboran
-        User::create([
-            'id' => '123',
-            'name' => 'Admin Laboratorium',
-            'email' => 'laboran@uinsu.ac.id',
-            'password' => Hash::make('password123'),
-            'role' => 'laboran',
+        $account = config('si_praktikum.initial_laboran');
+
+        if (! $account['id'] || ! $account['email'] || ! $account['password']) {
+            $this->command?->warn('Akun laboran awal dilewati. Isi SEED_LABORAN_ID, SEED_LABORAN_EMAIL, dan SEED_LABORAN_PASSWORD bila diperlukan.');
+
+            return;
+        }
+
+        User::query()->firstOrCreate(['id' => $account['id']], [
+            'name' => $account['name'],
+            'email' => $account['email'],
+            'password' => Hash::make($account['password']),
+            'role' => 'Laboran',
+            'email_verified_at' => now(),
+            'is_first_login' => true,
         ]);
 
     }
