@@ -49,35 +49,9 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Submission::class, 'student_id');
     }
 
-    /**
-     * Mendapatkan role yang sedang aktif digunakan saat ini.
-     * Jika Aslab sedang ganti mode, ini akan membaca dari session.
-     */
-    public function getActiveRoleAttribute(): string
-    {
-        $storedRole = UserRole::normalize((string) $this->getRawOriginal('role'))?->value
-            ?? UserRole::MAHASISWA->value;
-        $sessionRole = UserRole::normalize(session('active_role'));
-
-        if ($storedRole === UserRole::ASLAB->value && $sessionRole === UserRole::MAHASISWA) {
-            return $sessionRole->value;
-        }
-
-        return $storedRole;
-    }
-
     public function hasRole(UserRole|string ...$roles): bool
     {
         $actual = UserRole::normalize((string) $this->getRawOriginal('role'));
-
-        return collect($roles)->contains(
-            fn (UserRole|string $role) => $actual === ($role instanceof UserRole ? $role : UserRole::normalize($role))
-        );
-    }
-
-    public function hasActiveRole(UserRole|string ...$roles): bool
-    {
-        $actual = UserRole::normalize($this->active_role);
 
         return collect($roles)->contains(
             fn (UserRole|string $role) => $actual === ($role instanceof UserRole ? $role : UserRole::normalize($role))

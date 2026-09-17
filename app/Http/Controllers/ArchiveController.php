@@ -11,7 +11,7 @@ class ArchiveController extends Controller
     public function index()
     {
         $user = Auth::user();
-        $role = strtoupper($user->active_role);
+        $role = strtoupper($user->role);
 
         // Ambil semua semester yang TIDAK aktif (Arsip)
         $archivedSemesters = Semester::where('is_active', false)->pluck('id');

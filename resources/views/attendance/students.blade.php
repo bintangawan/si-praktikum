@@ -2,9 +2,6 @@
     <x-slot name="header_title">Daftar Peserta: {{ $course->course_name }}</x-slot>
 
     <div class="max-w-[95rem] mx-auto py-0 px-4">
-        
-
-
         {{-- HEADER SECTION --}}
         <div class="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
             <div>
@@ -30,6 +27,43 @@
             </div>
         </div>
 
+        @if(strtoupper(auth()->user()->role) === 'LABORAN')
+            <div class="mb-8 rounded-[2rem] border border-indigo-100 bg-indigo-50/70 p-6 shadow-sm">
+                <div class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                        <p class="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-500">Kelola Roster Kelas</p>
+                        <h3 class="mt-2 text-xl font-black text-slate-900">Tambahkan Mahasiswa</h3>
+                        <p class="mt-1 text-sm text-slate-500">Pilih mahasiswa yang sudah terdaftar di sistem untuk dimasukkan ke kelas ini.</p>
+                    </div>
+
+                    @if($availableStudents->isNotEmpty())
+                        <form action="{{ route('courses.add-student', $course) }}" method="POST" class="flex w-full flex-col gap-3 sm:flex-row lg:max-w-2xl">
+                            @csrf
+                            <div class="flex-1">
+                                <label for="student_id" class="sr-only">Pilih mahasiswa</label>
+                                <select id="student_id" name="student_id" required class="w-full rounded-xl border-indigo-200 bg-white px-4 py-3 text-sm focus:border-indigo-500 focus:ring-indigo-500">
+                                    <option value="">Pilih nama / NIM mahasiswa</option>
+                                    @foreach($availableStudents as $availableStudent)
+                                        <option value="{{ $availableStudent->id }}" @selected(old('student_id') === $availableStudent->id)>
+                                            {{ $availableStudent->id }} — {{ $availableStudent->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <x-input-error :messages="$errors->get('student_id')" class="mt-2" />
+                            </div>
+                            <button type="submit" class="whitespace-nowrap rounded-xl bg-indigo-700 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-white transition hover:bg-indigo-800 active:scale-95">
+                                + Tambahkan ke Kelas
+                            </button>
+                        </form>
+                    @else
+                        <div class="rounded-xl border border-indigo-200 bg-white px-5 py-3 text-sm font-semibold text-indigo-700">
+                            Semua mahasiswa sudah masuk ke kelas ini.
+                        </div>
+                    @endif
+                </div>
+            </div>
+        @endif
+
         {{-- TABEL MAHASISWA --}}
         <div class="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
             <div class="overflow-x-auto">
@@ -40,8 +74,7 @@
                             <th class="px-8 py-6 tracking-widest whitespace-nowrap">Mahasiswa</th>
                             <th class="px-8 py-6 tracking-widest whitespace-nowrap">NIM</th>
                             
-                            {{-- Akses Aksi Hanya Untuk Dosen/Laboran/Aslab --}}
-                            @if(in_array(strtoupper(auth()->user()->active_role), ['ASLAB', 'LABORAN', 'DOSEN']))
+                            @if(strtoupper(auth()->user()->role) === 'LABORAN')
                                 <th class="px-8 py-6 tracking-widest text-center uppercase whitespace-nowrap">Aksi</th>
                             @endif
                         </tr>
@@ -68,7 +101,7 @@
                                     <span class="text-indigo-600 font-mono font-bold">{{ $student->id }}</span>
                                 </td>
                                 
-                                @if(in_array(strtoupper(auth()->user()->active_role), ['ASLAB', 'LABORAN', 'DOSEN']))
+                                @if(strtoupper(auth()->user()->role) === 'LABORAN')
                                 <td class="px-8 py-5 text-center whitespace-nowrap">
                                     <form action="{{ route('courses.remove-student', [$course->id, $student->id]) }}" method="POST">
                                         @csrf
@@ -85,7 +118,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="5" class="p-16 text-center">
+                                <td colspan="{{ strtoupper(auth()->user()->role) === 'LABORAN' ? 4 : 3 }}" class="p-16 text-center">
                                     <div class="inline-flex p-6 bg-slate-50 rounded-[2rem] text-slate-300 mb-4">
                                         <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                                     </div>

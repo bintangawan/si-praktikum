@@ -1,4 +1,4 @@
-@if(in_array(strtoupper(auth()->user()->active_role), ['DOSEN', 'ASLAB', 'LABORAN']))
+@if(in_array(strtoupper(auth()->user()->role), ['DOSEN', 'ASLAB', 'LABORAN']))
 {{-- Modal Tambah Pertemuan --}}
 <div id="modalMeeting" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md hidden items-center justify-center z-50 p-4">
     <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in duration-300">

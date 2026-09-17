@@ -125,7 +125,7 @@ class SubmissionController extends Controller
             'feedback' => ['nullable', 'string', 'max:5000', 'required_if:status,REVISI'],
         ]);
         $status = $validated['status'] === 'ACC' ? SubmissionStatus::APPROVED : SubmissionStatus::REVISION;
-        $role = UserRole::normalize($request->user()->active_role);
+        $role = UserRole::normalize((string) $request->user()->role);
 
         DB::transaction(function () use ($submission, $validated, $status, $role): void {
             $locked = Submission::query()->whereKey($submission->id)->lockForUpdate()->firstOrFail();
@@ -189,7 +189,7 @@ class SubmissionController extends Controller
     public function pending(Request $request): View
     {
         $user = $request->user();
-        $role = UserRole::normalize($user->active_role);
+        $role = UserRole::normalize((string) $user->role);
         $query = Submission::query()->with(['student', 'meeting.course', 'finalTask.course']);
 
         match ($role) {

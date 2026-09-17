@@ -6,7 +6,7 @@
     <div class="max-w-[95rem] mx-auto py-8 px-4">
         
         {{-- Form Join Khusus Mahasiswa --}}
-        @if(strtoupper(auth()->user()->active_role) === 'MAHASISWA')
+        @if(strtoupper(auth()->user()->role) === 'MAHASISWA')
         <div class="mb-8 bg-indigo-900 rounded-[2rem] p-8 text-white shadow-xl shadow-indigo-100 relative overflow-hidden">
             <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl pointer-events-none"></div>
             <div class="md:flex items-center justify-between relative z-10">
@@ -14,13 +14,17 @@
                     <h3 class="text-2xl font-black uppercase tracking-tight mb-1">Gabung Kelas Baru</h3>
                     <p class="text-indigo-200 text-[11px] font-bold uppercase tracking-widest">Masukkan kode pendaftaran untuk mulai praktikum.</p>
                 </div>
-                <form action="{{ route('courses.enroll') }}" method="POST" class="mt-6 md:mt-0 flex gap-3">
+                <form action="{{ route('courses.enroll') }}" method="POST" class="mt-6 flex w-full flex-col gap-3 sm:flex-row md:mt-0 md:w-auto">
                     @csrf
-                    <input type="text" name="enrollment_code" 
-                        class="rounded-xl border-none bg-white/10 text-white placeholder-indigo-300 focus:ring-2 focus:ring-indigo-400 font-mono uppercase font-black tracking-widest w-full md:w-56 px-5 py-3 backdrop-blur-md" 
-                        placeholder="KODE KELAS..." required>
-                    <button type="submit" class="bg-indigo-500 hover:bg-indigo-400 text-white px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition shadow-lg active:scale-95">
-                        Gabung
+                    <div class="w-full md:w-64">
+                        <label for="enrollment_code" class="sr-only">Kode enrollment kelas</label>
+                        <input id="enrollment_code" type="text" name="enrollment_code" value="{{ old('enrollment_code') }}"
+                            class="w-full rounded-xl border-white/10 bg-white/10 px-5 py-3 font-mono font-black uppercase tracking-widest text-white placeholder-indigo-300 backdrop-blur-md focus:border-indigo-300 focus:ring-2 focus:ring-indigo-400"
+                            placeholder="KODE KELAS..." maxlength="20" required>
+                        <x-input-error :messages="$errors->get('enrollment_code')" class="mt-2 text-red-200" />
+                    </div>
+                    <button type="submit" class="w-full whitespace-nowrap rounded-xl bg-white px-7 py-3 text-[10px] font-black uppercase tracking-widest text-indigo-700 shadow-lg transition hover:bg-indigo-50 focus:outline-none focus:ring-4 focus:ring-white/20 active:scale-95 sm:w-auto">
+                        Gabung ke Kelas
                     </button>
                 </form>
             </div>
@@ -48,7 +52,7 @@
                 </div>
             </div>
             
-            @if(strtoupper(auth()->user()->active_role) === 'LABORAN')
+            @if(strtoupper(auth()->user()->role) === 'LABORAN')
             <div class="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
                 
                 {{-- TOGGLE SWITCH FILTER KELAS (KHUSUS LABORAN) --}}
@@ -101,6 +105,15 @@
                     
                     <div class="space-y-3 border-t border-gray-50 pt-6">
                         <div class="flex items-center gap-3">
+                            <div class="w-7 h-7 rounded-lg bg-indigo-50 flex items-center justify-center text-indigo-500 border border-indigo-100">
+                                <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            </div>
+                            <div class="flex flex-1 items-center justify-between text-[10px] font-bold">
+                                <span class="uppercase tracking-widest text-gray-400">Mahasiswa</span>
+                                <span class="rounded-lg bg-indigo-50 px-2.5 py-1 font-black text-indigo-600">{{ $course->students_count }} Orang</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3">
                             <div class="w-7 h-7 rounded-lg bg-gray-50 flex items-center justify-center text-gray-400 text-[8px] font-black border border-gray-100">DS</div>
                             <div class="flex-1 flex justify-between items-center text-[10px] font-bold">
                                 <span class="text-gray-400 uppercase tracking-widest">Dosen</span>
@@ -124,7 +137,7 @@
                     </div>
 
                     {{-- Tampilkan Kode Enrollment HANYA untuk Non-Mahasiswa --}}
-                    @if(strtoupper(auth()->user()->active_role) !== 'MAHASISWA')
+                    @if(strtoupper(auth()->user()->role) !== 'MAHASISWA')
                     <div class="mt-8 p-4 bg-indigo-50/50 rounded-2xl border border-indigo-100/50 text-center relative group/code overflow-hidden">
                         <div class="absolute inset-0 bg-indigo-100/0 group-hover/code:bg-indigo-100/50 transition"></div>
                         <p class="text-[8px] text-indigo-400 uppercase font-black tracking-widest relative z-10 mb-1">Enrollment Code</p>
@@ -133,7 +146,12 @@
                     @endif
                 </div>
 
-                <div class="px-8 pb-8 pt-4 mt-auto relative z-10">
+                <div class="relative z-10 mt-auto grid gap-3 px-8 pb-8 pt-4 {{ in_array(strtoupper(auth()->user()->role), ['ASLAB', 'LABORAN', 'DOSEN']) ? 'sm:grid-cols-2' : '' }}">
+                    @if(in_array(strtoupper(auth()->user()->role), ['ASLAB', 'LABORAN', 'DOSEN']))
+                    <a href="{{ route('courses.students', $course->id) }}" class="block w-full rounded-2xl border border-indigo-100 bg-indigo-50 py-4 text-center text-[10px] font-black uppercase tracking-widest text-indigo-700 shadow-sm transition hover:bg-indigo-100 active:scale-95">
+                        {{ strtoupper(auth()->user()->role) === 'LABORAN' ? 'Kelola Mahasiswa' : 'Lihat Mahasiswa' }}
+                    </a>
+                    @endif
                     <a href="{{ route('courses.show', $course->id) }}" class="w-full block text-center bg-gray-50 hover:bg-slate-900 text-gray-500 hover:text-white text-[11px] font-black py-4 rounded-2xl uppercase tracking-widest transition-all border border-gray-100 shadow-sm hover:shadow-xl active:scale-95">
                         Buka Kelas
                     </a>

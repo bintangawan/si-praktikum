@@ -16,11 +16,10 @@ class RoleCheck
             return redirect()->route('login');
         }
 
-        $activeRole = UserRole::normalize($request->user()->active_role);
+        $userRole = UserRole::normalize((string) $request->user()->role);
         $allowedRoles = array_filter(array_map(UserRole::normalize(...), $roles));
 
-        // Cek apakah role user ada dalam daftar yang diizinkan
-        if (! $activeRole || ! in_array($activeRole, $allowedRoles, true)) {
+        if (! $userRole || ! in_array($userRole, $allowedRoles, true)) {
             abort(403, 'Anda tidak memiliki hak akses untuk halaman ini.');
         }
 

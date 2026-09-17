@@ -117,7 +117,7 @@ class FinalTaskController extends Controller
             'notes' => ['nullable', 'string', 'max:5000', 'required_if:status,REVISI'],
         ]);
         $status = $validated['status'] === 'ACC' ? SubmissionStatus::APPROVED : SubmissionStatus::REVISION;
-        $role = UserRole::normalize($request->user()->active_role);
+        $role = UserRole::normalize((string) $request->user()->role);
 
         DB::transaction(function () use ($submission, $validated, $status, $role): void {
             $locked = Submission::query()->whereKey($submission->id)->lockForUpdate()->firstOrFail();

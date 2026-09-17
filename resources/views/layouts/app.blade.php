@@ -7,6 +7,9 @@
 
     <title>{{ config('app.name', 'SI-PRAKTIKUM') }}</title>
 
+    <link rel="preconnect" href="https://fonts.bunny.net">
+    <link href="https://fonts.bunny.net/css?family=poppins:400,500,600,700,800&display=swap" rel="stylesheet" />
+
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 
@@ -36,24 +39,6 @@
                 <span class="text-xl font-black tracking-tighter uppercase text-indigo-900">SI-<span class="text-indigo-500">Praktikum</span></span>
             </div>
             
-            {{-- Letakkan sebelum dropdown profil di header --}}
-            @if(strtoupper(auth()->user()->role) === 'ASLAB')
-                <form action="{{ route('role.switch') }}" method="POST" class="mr-4 hidden sm:block">
-                    @csrf
-                    <button type="submit" class="group flex items-center gap-3 px-4 py-2 bg-indigo-50 border border-indigo-100 rounded-xl hover:bg-indigo-600 transition-all shadow-sm">
-                        <div class="p-1.5 bg-white rounded-lg group-hover:bg-indigo-500 transition-colors">
-                            <svg class="w-4 h-4 text-indigo-500 group-hover:text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
-                        </div>
-                        <div class="text-left">
-                            <span class="block text-[8px] font-black text-indigo-400 group-hover:text-indigo-200 uppercase tracking-widest leading-none mb-1">Mode Saat Ini</span>
-                            <span class="block text-xs font-black text-indigo-700 group-hover:text-white uppercase tracking-tight leading-none">
-                                {{ auth()->user()->active_role }}
-                            </span>
-                        </div>
-                    </button>
-                </form>
-            @endif
-            
             {{-- Kanan: Profile Dropdown --}}
             <div class="relative flex-shrink-0" x-data="{ open: false }">
                 <button @click="open = !open" class="flex items-center space-x-3 focus:outline-none group p-1.5 hover:bg-gray-50 rounded-full transition max-w-[200px] sm:max-w-[300px]">
@@ -61,7 +46,7 @@
                         <p class="text-sm font-bold text-gray-800 group-hover:text-indigo-600 transition truncate" title="{{ Auth::user()->name }}">
                             {{ Auth::user()->name }}
                         </p>
-                        <p class="text-[10px] text-gray-500 font-medium italic uppercase tracking-tighter">{{ Auth::user()->active_role }}</p>
+                        <p class="text-[10px] text-gray-500 font-medium italic uppercase tracking-tighter">{{ Auth::user()->role }}</p>
                     </div>
                     <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-white shadow-sm ring-1 ring-gray-200 flex-shrink-0">
                         @if(Auth::user()->avatar)
@@ -83,20 +68,8 @@
                     
                     <div class="px-4 py-2 border-b border-gray-50 mb-1 sm:hidden">
                         <p class="text-xs font-bold text-gray-800 break-words">{{ Auth::user()->name }}</p>
-                        <p class="text-[10px] text-gray-400">{{ Auth::user()->active_role }}</p>
+                        <p class="text-[10px] text-gray-400">{{ Auth::user()->role }}</p>
                     </div>
-
-                    {{-- Di dalam dropdown profil, di atas "Edit Profil" --}}
-                    @if(strtoupper(auth()->user()->role) === 'ASLAB')
-                        <form action="{{ route('role.switch') }}" method="POST" class="sm:hidden">
-                            @csrf
-                            <button type="submit" class="flex items-center w-full px-4 py-2 text-sm text-indigo-600 font-bold hover:bg-indigo-50 transition">
-                                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
-                                Ganti Mode (Ke {{ auth()->user()->active_role === 'Aslab' ? 'Mahasiswa' : 'Aslab' }})
-                            </button>
-                        </form>
-                        <hr class="my-1 border-gray-50 sm:hidden">
-                    @endif
 
                     <a href="{{ route('profile.edit') }}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
@@ -145,7 +118,7 @@
 
                     <div class="my-4 border-t border-indigo-800/50"></div>
 
-                    @if(auth()->user()->active_role === 'Laboran')
+                    @if(auth()->user()->role === 'Laboran')
                         <p class="px-4 text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-2">Laboran</p>
                         <x-nav-link-sidebar :href="route('users.index')" :active="request()->routeIs('users.index')">
                             <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
@@ -169,21 +142,21 @@
                             Periksa Laprak
                         </x-nav-link-sidebar>
 
-                    @elseif(auth()->user()->active_role === 'Dosen')
+                    @elseif(auth()->user()->role === 'Dosen')
                         <p class="px-4 text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-2">Dosen</p>
                         <x-nav-link-sidebar :href="route('submissions.pending')" :active="request()->routeIs('submissions.pending')">
                             <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                             Periksa Laprak
                         </x-nav-link-sidebar>
 
-                    @elseif(auth()->user()->active_role === 'Aslab')
+                    @elseif(auth()->user()->role === 'Aslab')
                         <p class="px-4 text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-2">Aslab</p>
                         <x-nav-link-sidebar :href="route('submissions.pending')" :active="request()->routeIs('submissions.pending')">
                             <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                             Periksa Laprak
                         </x-nav-link-sidebar>
 
-                    @elseif(auth()->user()->active_role === 'Mahasiswa')
+                    @elseif(auth()->user()->role === 'Mahasiswa')
                         <p class="px-4 text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-2">Mahasiswa</p>
                         <x-nav-link-sidebar :href="route('submissions.my-index')" :active="request()->routeIs('submissions.my-index')">
                         <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>

@@ -6,7 +6,7 @@
         </div>
 
         {{-- FORM MODAL TOMBOL (Hanya Muncul Jika Active Role Laboran) --}}
-        @if(strtoupper(auth()->user()->active_role) === 'LABORAN')
+        @if(strtoupper(auth()->user()->role) === 'LABORAN')
             <div x-data="{ modalOpen: false }">
                 <button @click="modalOpen = true" class="px-4 py-2.5 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition flex items-center gap-2 shadow-md">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
@@ -139,7 +139,7 @@
                         <div class="flex items-center gap-2">
                             <a href="{{ $tutorial->url }}" target="_blank" class="text-xs font-bold text-emerald-700 hover:text-emerald-900 transition">Buka Sumber asli &rarr;</a>
                             
-                            @if(strtoupper(auth()->user()->active_role) === 'LABORAN')
+                            @if(strtoupper(auth()->user()->role) === 'LABORAN')
                                 <form action="{{ route('tutorials.destroy', $tutorial->id) }}" method="POST" onsubmit="return confirm('Hapus tutorial ini?')">
                                     @csrf
                                     @method('DELETE')

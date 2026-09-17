@@ -17,7 +17,7 @@
                     <h2 class="text-3xl font-black text-gray-800 tracking-tight uppercase leading-none">{{ $meeting->title }}</h2>
                     
                     {{-- TOMBOL EDIT PERTEMUAN --}}
-                    @if(in_array(strtoupper(auth()->user()->active_role), ['ASLAB', 'LABORAN', 'DOSEN']))
+                    @if(in_array(strtoupper(auth()->user()->role), ['ASLAB', 'LABORAN', 'DOSEN']))
                     <button onclick="openEditMeetingModal()" class="p-2 bg-indigo-50 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white transition-all shadow-sm border border-indigo-100" title="Edit Detail Pertemuan">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-4m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                     </button>
@@ -27,7 +27,7 @@
             </div>
 
             {{-- PANEL DEADLINE (Kanan) --}}
-            @if(in_array(strtoupper(auth()->user()->active_role), ['ASLAB', 'LABORAN', 'DOSEN']))
+            @if(in_array(strtoupper(auth()->user()->role), ['ASLAB', 'LABORAN', 'DOSEN']))
             <div class="w-full lg:w-auto bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex-shrink-0">
                 <form action="{{ route('meetings.update-deadline', $meeting->id) }}" method="POST" class="flex flex-col sm:flex-row items-end gap-3">
                     @csrf
@@ -234,7 +234,7 @@
     </div>
 
     {{-- MODAL EDIT PERTEMUAN --}}
-    @if(in_array(strtoupper(auth()->user()->active_role), ['ASLAB', 'LABORAN', 'DOSEN']))
+    @if(in_array(strtoupper(auth()->user()->role), ['ASLAB', 'LABORAN', 'DOSEN']))
     <div id="modalEditMeeting" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md hidden items-center justify-center z-50 p-4">
         <div class="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in duration-300">
             <form action="{{ route('meetings.update', $meeting->id) }}" method="POST">

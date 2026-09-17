@@ -20,7 +20,7 @@
         </div>
 
         <div class="w-full md:w-auto">
-            @if(strtoupper(Auth::user()->active_role) === 'MAHASISWA')
+            @if(strtoupper(Auth::user()->role) === 'MAHASISWA')
                 <a href="{{ route('mahasiswa.final-tasks.manage', $course->finalTask->id) }}" class="block w-full md:w-auto px-8 py-4 bg-white text-indigo-600 text-[11px] font-black rounded-2xl uppercase tracking-widest hover:bg-indigo-50 transition shadow-lg text-center active:scale-95">
                     Kelola Laprak Final
                 </a>
@@ -32,7 +32,7 @@
         </div>
     </div>
 
-    @if(strtoupper(auth()->user()->active_role) === 'MAHASISWA')
+    @if(strtoupper(auth()->user()->role) === 'MAHASISWA')
         @php 
             $finalSub = \App\Models\Submission::where('final_task_id', $course->finalTask->id)
                             ->where('student_id', auth()->id())

@@ -8,7 +8,6 @@ use App\Http\Controllers\FinalTaskController;
 use App\Http\Controllers\FirstLoginController;
 use App\Http\Controllers\MeetingController;
 use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SemesterController;
 use App\Http\Controllers\SubmissionController;
 use App\Http\Controllers\TutorialController;
@@ -34,7 +33,6 @@ Route::middleware(['auth', 'verified', 'password.changed'])->group(function () {
     Route::get('courses/{course}', [MeetingController::class, 'show'])->name('courses.show');
     Route::get('arsip', [ArchiveController::class, 'index'])->name('archives.index');
     Route::get('tutorials', [TutorialController::class, 'index'])->name('tutorials.index');
-    Route::post('switch-role', [RoleController::class, 'switchRole'])->name('role.switch');
 
     Route::middleware('role:Mahasiswa')->group(function () {
         Route::post('courses/enroll', [CourseController::class, 'enroll'])->name('courses.enroll');
@@ -58,7 +56,6 @@ Route::middleware(['auth', 'verified', 'password.changed'])->group(function () {
         Route::get('courses/{course}/attendance-report/pdf', [AttendanceController::class, 'exportPdf'])->name('attendance.report.pdf');
         Route::get('courses/{course}/attendance-report/excel', [AttendanceController::class, 'exportExcel'])->name('attendance.report.excel');
         Route::get('courses/{course}/students', [CourseController::class, 'students'])->name('courses.students');
-        Route::delete('courses/{course}/students/{student}', [CourseController::class, 'removeStudent'])->name('courses.remove-student');
         Route::get('meetings/{meeting}/submissions', [SubmissionController::class, 'index'])->name('submissions.index');
         Route::get('submissions/{submission}/handler', [SubmissionController::class, 'handler'])->name('submissions.handler');
         Route::post('submissions/{submission}/approve', [SubmissionController::class, 'approve'])->name('submissions.approve');
@@ -73,6 +70,8 @@ Route::middleware(['auth', 'verified', 'password.changed'])->group(function () {
 
     Route::middleware('role:Laboran')->group(function () {
         Route::post('courses', [CourseController::class, 'store'])->name('courses.store');
+        Route::post('courses/{course}/students', [CourseController::class, 'addStudent'])->name('courses.add-student');
+        Route::delete('courses/{course}/students/{student}', [CourseController::class, 'removeStudent'])->name('courses.remove-student');
         Route::get('import-users', [UserImportController::class, 'showImportForm'])->name('user.import.form');
         Route::post('import-users', [UserImportController::class, 'import'])->name('user.import');
         Route::get('users-management', [UserController::class, 'index'])->name('users.index');

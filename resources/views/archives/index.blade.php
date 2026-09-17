@@ -62,7 +62,7 @@
 
                                         {{-- Info Personal --}}
                                         <div class="mt-8 pt-6 border-t border-gray-100 space-y-3">
-                                            @if(strtoupper(auth()->user()->active_role) === 'MAHASISWA')
+                                            @if(strtoupper(auth()->user()->role) === 'MAHASISWA')
                                                 <div class="flex items-center gap-3">
                                                     <div class="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400 text-[8px] font-black uppercase">DS</div>
                                                     <div>

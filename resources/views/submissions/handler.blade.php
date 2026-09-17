@@ -107,11 +107,11 @@
                 <div class="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
                     <h3 class="text-xs font-black text-gray-800 tracking-widest uppercase mb-6 flex items-center gap-2">
                         <span class="w-1.5 h-4 bg-indigo-600 rounded-full"></span>
-                        Review Action ({{ Auth::user()->active_role }})
+                        Review Action ({{ Auth::user()->role }})
                     </h3>
 
-                    @php 
-                        $userRole = strtoupper(Auth::user()->active_role); 
+                    @php
+                        $userRole = strtoupper(Auth::user()->role);
                         $isAslabAcc = strtoupper($submission->aslab_status) === 'ACC';
                     @endphp
 

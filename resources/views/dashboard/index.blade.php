@@ -2,7 +2,7 @@
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 leading-tight">
-            {{ __('Dashboard ') . auth()->user()->active_role }}
+            {{ __('Dashboard ') . auth()->user()->role }}
         </h2>
     </x-slot>
 
@@ -10,13 +10,13 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             
             {{-- LOGIKA PEMANGGILAN PARTIAL VIEW --}}
-            @if(auth()->user()->active_role === 'Dosen')
+            @if(auth()->user()->role === 'Dosen')
                 @include('dashboard._dosen')
-            @elseif(auth()->user()->active_role === 'Mahasiswa')
+            @elseif(auth()->user()->role === 'Mahasiswa')
                 @include('dashboard._mahasiswa')
-            @elseif(auth()->user()->active_role === 'Aslab')
+            @elseif(auth()->user()->role === 'Aslab')
                 @include('dashboard._aslab')
-            @elseif(auth()->user()->active_role === 'Laboran')
+            @elseif(auth()->user()->role === 'Laboran')
                 @include('dashboard._laboran')
             @endif
 

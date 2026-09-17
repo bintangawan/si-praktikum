@@ -18,7 +18,7 @@
                                     P{{ $meeting->meeting_number }}
                                 </span>
                                 
-                                @if(strtoupper(auth()->user()->active_role) === 'MAHASISWA')
+                                @if(strtoupper(auth()->user()->role) === 'MAHASISWA')
                                     @php 
                                         $attendance = $meeting->attendances->where('student_id', auth()->id())->first(); 
                                         $anyAbsen = $meeting->attendances_count > 0;
@@ -55,7 +55,7 @@
                                 </div>
                             @endif
                             
-                            @if(strtoupper(auth()->user()->active_role) === 'MAHASISWA')
+                            @if(strtoupper(auth()->user()->role) === 'MAHASISWA')
                                 @php 
                                     $isPastDeadline = $meeting->deadline && now()->gt(\Carbon\Carbon::parse($meeting->deadline));
                                     $isCompleted = $sub && strtoupper($sub->aslab_status) == 'ACC' && strtoupper($sub->laboran_status) == 'ACC';
@@ -106,7 +106,7 @@
                         </div>
 
                         <div class="flex flex-wrap items-center gap-3">
-                            @if(in_array(strtoupper(auth()->user()->active_role), ['DOSEN', 'ASLAB', 'LABORAN']))
+                            @if(in_array(strtoupper(auth()->user()->role), ['DOSEN', 'ASLAB', 'LABORAN']))
                                 <a href="{{ route('attendance.index', $meeting->id) }}" class="px-5 py-3 bg-amber-50 text-amber-700 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-amber-100 hover:bg-amber-100 transition shadow-sm text-center min-w-[100px]">
                                     Presensi
                                 </a>
@@ -115,7 +115,7 @@
                                 </a>
                             @endif
 
-                            @if(strtoupper(auth()->user()->active_role) === 'MAHASISWA')
+                            @if(strtoupper(auth()->user()->role) === 'MAHASISWA')
                                 <a href="{{ route('mahasiswa.submissions.manage', $meeting->id) }}" 
                                    class="px-5 py-3 {{ $sub ? ($sub->aslab_status == 'REVISI' ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700') : 'bg-indigo-600 hover:bg-indigo-700' }} text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl transition active:scale-95 text-center min-w-[120px]">
                                     {{ $sub ? 'Kelola Tugas' : 'Kumpul Tugas' }}

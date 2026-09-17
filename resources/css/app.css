@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+    html {
+        font-family: 'Poppins', ui-sans-serif, system-ui, sans-serif;
+    }
+
+    [x-cloak] {
+        display: none !important;
+    }
+}
+
 @layer utilities {
     @keyframes fade-in {
         from { opacity: 0; transform: translateY(-0.5rem); }

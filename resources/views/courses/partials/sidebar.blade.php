@@ -52,7 +52,7 @@
             </div>
         </div>
 
-        @if(strtoupper(auth()->user()->active_role) === 'MAHASISWA')
+        @if(strtoupper(auth()->user()->role) === 'MAHASISWA')
             @php
                 $conductedMeetings = $course->meetings->filter(fn($meeting) => $meeting->attendances_count > 0);
                 $totalMeetings = $conductedMeetings->count();
@@ -94,7 +94,7 @@
         @endif
 
         {{-- Daftar peserta hanya tersedia untuk pengelola kelas. --}}
-        @if(in_array(strtoupper(auth()->user()->active_role), ['ASLAB', 'LABORAN', 'DOSEN']))
+        @if(in_array(strtoupper(auth()->user()->role), ['ASLAB', 'LABORAN', 'DOSEN']))
             <div class="mt-3">
                 <a href="{{ route('courses.students', $course->id) }}" class="w-full flex items-center justify-center gap-2 px-4 py-4 bg-slate-50 text-slate-700 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition border border-slate-200 shadow-sm">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-6-6zM13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
@@ -104,7 +104,7 @@
         @endif
 
         {{-- TOMBOL CETAK KARTU PRAKTIKUM (Khusus Mahasiswa) --}}
-        @if(strtoupper(auth()->user()->active_role) === 'MAHASISWA')
+        @if(strtoupper(auth()->user()->role) === 'MAHASISWA')
             <div class="mt-3">
                 <a href="{{ route('courses.print-card', $course->id) }}" target="_blank" class="w-full flex items-center justify-center gap-2 px-4 py-4 bg-amber-500 text-slate-900 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-400 transition shadow-sm">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2z"></path></svg>

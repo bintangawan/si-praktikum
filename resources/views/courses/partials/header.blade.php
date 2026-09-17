@@ -5,7 +5,7 @@
         KEMBALI KE DASHBOARD
     </a>
 
-    @if(in_array(strtoupper(Auth::user()->active_role), ['ASLAB', 'LABORAN', 'DOSEN']))
+    @if(in_array(strtoupper(Auth::user()->role), ['ASLAB', 'LABORAN', 'DOSEN']))
     <div class="flex gap-3">
         @if(!$course->finalTask)
         <button onclick="document.getElementById('modal-final-task').classList.replace('hidden', 'flex')" class="px-4 py-2 bg-indigo-600 text-white text-[10px] font-black rounded-xl uppercase tracking-widest hover:bg-indigo-700 transition shadow-lg shadow-indigo-100">

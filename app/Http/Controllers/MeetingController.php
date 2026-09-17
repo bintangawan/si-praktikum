@@ -16,7 +16,7 @@ class MeetingController extends Controller
     {
         $this->authorize('view', $course);
         $course->load(['laboran', 'dosen', 'aslab', 'semester', 'finalTask']);
-        $studentId = $request->user()->hasActiveRole(UserRole::MAHASISWA) ? $request->user()->id : null;
+        $studentId = $request->user()->hasRole(UserRole::MAHASISWA) ? $request->user()->id : null;
 
         $course->load(['meetings' => function ($query) use ($studentId) {
             $query->withCount('attendances')

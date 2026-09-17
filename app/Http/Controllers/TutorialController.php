@@ -35,7 +35,7 @@ class TutorialController extends Controller
     public function store(Request $request): RedirectResponse
     {
         // Pengecekan akses: Hanya Laboran yang bisa mengunggah
-        if (strtoupper(auth()->user()->active_role) !== 'LABORAN') {
+        if (! auth()->user()->hasRole('Laboran')) {
             return redirect()->back()->with('error', 'Hanya Laboran yang diizinkan mengunggah tutorial.');
         }
 
@@ -60,7 +60,7 @@ class TutorialController extends Controller
     public function destroy(Tutorial $tutorial): RedirectResponse
     {
         // Hanya Laboran yang bisa menghapus
-        if (strtoupper(auth()->user()->active_role) !== 'LABORAN') {
+        if (! auth()->user()->hasRole('Laboran')) {
             return redirect()->back()->with('error', 'Akses ditolak.');
         }
 

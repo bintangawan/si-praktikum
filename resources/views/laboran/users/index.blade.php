@@ -105,10 +105,10 @@
                                     {{-- Badge Role --}}
                                     <td class="px-6 py-4 text-center">
                                         <span class="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest
-                                            {{ $user->active_role == 'Mahasiswa' ? 'bg-blue-50 text-blue-600 border border-blue-100' : 
-                                               ($user->active_role == 'Dosen' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 
-                                               ($user->active_role == 'Laboran' ? 'bg-purple-50 text-purple-600 border border-purple-100' : 'bg-orange-50 text-orange-600 border border-orange-100')) }}">
-                                            {{ $user->active_role }}
+                                            {{ $user->role == 'Mahasiswa' ? 'bg-blue-50 text-blue-600 border border-blue-100' :
+                                               ($user->role == 'Dosen' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                                               ($user->role == 'Laboran' ? 'bg-purple-50 text-purple-600 border border-purple-100' : 'bg-orange-50 text-orange-600 border border-orange-100')) }}">
+                                            {{ $user->role }}
                                         </span>
                                     </td>
 
@@ -125,14 +125,14 @@
                                             </form>
 
                                             {{-- Tombol Kelola Jabatan Aslab --}}
-                                            @if(strtoupper($user->active_role) === 'MAHASISWA')
+                                            @if(strtoupper($user->role) === 'MAHASISWA')
                                                 <form action="{{ route('users.make-aslab', $user->id) }}" method="POST" onsubmit="return confirm('Angkat {{ $user->name }} menjadi Aslab?')">
                                                     @csrf
                                                     <button type="submit" class="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-indigo-600 hover:text-white transition-all border border-indigo-100">
                                                         Angkat Aslab
                                                     </button>
                                                 </form>
-                                            @elseif(strtoupper($user->active_role) === 'ASLAB')
+                                            @elseif(strtoupper($user->role) === 'ASLAB')
                                                 <form action="{{ route('users.revoke-aslab', $user->id) }}" method="POST" onsubmit="return confirm('Cabut jabatan Aslab dari {{ $user->name }}?')">
                                                     @csrf
                                                     <button type="submit" class="px-4 py-2 bg-amber-50 text-amber-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-600 hover:text-white transition-all border border-amber-100">

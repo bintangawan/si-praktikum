@@ -25,13 +25,16 @@ class CourseController extends Controller
         }
 
         $user = $request->user();
-        $query = $activeSemester->courses()->with(['dosen', 'aslab', 'laboran'])->latest();
+        $query = $activeSemester->courses()
+            ->with(['dosen', 'aslab', 'laboran'])
+            ->withCount('students')
+            ->latest();
 
-        if ($user->hasActiveRole(UserRole::MAHASISWA)) {
+        if ($user->hasRole(UserRole::MAHASISWA)) {
             $query->whereHas('students', fn ($builder) => $builder->whereKey($user->id));
-        } elseif ($user->hasActiveRole(UserRole::DOSEN)) {
+        } elseif ($user->hasRole(UserRole::DOSEN)) {
             $query->where('dosen_id', $user->id);
-        } elseif ($user->hasActiveRole(UserRole::ASLAB)) {
+        } elseif ($user->hasRole(UserRole::ASLAB)) {
             $query->where('aslab_id', $user->id);
         } elseif ($request->query('view', 'my_classes') !== 'all') {
             $query->where('laboran_id', $user->id);
@@ -58,6 +61,11 @@ class CourseController extends Controller
         if (! $activeSemester) {
             return back()->withInput()->with('error', 'Aktifkan semester sebelum membuat kelas.');
         }
+
+        $request->merge([
+            'course_name' => preg_replace('/\s+/', ' ', trim((string) $request->input('course_name'))),
+            'class_group' => Str::upper(trim((string) $request->input('class_group'))),
+        ]);
 
         $validated = $request->validate([
             'course_name' => ['required', 'string', 'max:255'],
@@ -118,7 +126,32 @@ class CourseController extends Controller
         return view('attendance.students', [
             'course' => $course,
             'students' => $course->students()->orderBy('users.id')->get(),
+            'availableStudents' => User::query()
+                ->where('role', UserRole::MAHASISWA->value)
+                ->whereDoesntHave('courses', fn ($query) => $query->whereKey($course->id))
+                ->orderBy('name')
+                ->get(['id', 'name', 'email']),
         ]);
+    }
+
+    public function addStudent(Request $request, Course $course): RedirectResponse
+    {
+        $this->authorize('manage', $course);
+        $validated = $request->validate([
+            'student_id' => [
+                'required',
+                Rule::exists('users', 'id')->where(fn ($query) => $query->where('role', UserRole::MAHASISWA->value)),
+            ],
+        ]);
+
+        $student = User::query()->findOrFail($validated['student_id']);
+        $attached = $course->students()->syncWithoutDetaching([$student->id]);
+
+        if (empty($attached['attached'])) {
+            return back()->with('info', "{$student->name} sudah terdaftar di kelas ini.");
+        }
+
+        return back()->with('success', "{$student->name} berhasil ditambahkan ke kelas.");
     }
 
     public function removeStudent(Request $request, Course $course, User $student): RedirectResponse
