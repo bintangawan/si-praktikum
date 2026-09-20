@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\UserRole;
 use App\Models\Course;
 use App\Models\Meeting;
+use App\Services\DriveLink;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -15,19 +16,32 @@ class MeetingController extends Controller
     public function show(Request $request, Course $course): View
     {
         $this->authorize('view', $course);
-        $course->load(['laboran', 'dosen', 'aslab', 'semester', 'finalTask']);
+        $course->load([
+            'laboran:id,name,avatar',
+            'dosen:id,name,avatar',
+            'aslab:id,name,avatar',
+            'semester:id,name,is_active',
+            'finalTask',
+        ]);
         $studentId = $request->user()->hasRole(UserRole::MAHASISWA) ? $request->user()->id : null;
 
         $course->load(['meetings' => function ($query) use ($studentId) {
-            $query->withCount('attendances')
-                ->with([
-                    'attendances' => fn ($relation) => $studentId ? $relation->where('student_id', $studentId) : $relation,
-                    'submissions' => fn ($relation) => $studentId ? $relation->where('student_id', $studentId) : $relation,
+            $query->withCount(['attendances', 'submissions']);
+
+            if ($studentId) {
+                $query->with([
+                    'attendances' => fn ($relation) => $relation->where('student_id', $studentId),
+                    'submissions' => fn ($relation) => $relation
+                        ->where('student_id', $studentId)
+                        ->with(['histories' => fn ($history) => $history->whereNotNull('feedback')->latest()]),
                 ]);
+            }
         }]);
 
         if ($course->finalTask) {
-            $course->finalTask->load(['submissions' => fn ($query) => $studentId ? $query->where('student_id', $studentId) : $query]);
+            if ($studentId) {
+                $course->finalTask->load(['submissions' => fn ($query) => $query->where('student_id', $studentId)]);
+            }
         }
 
         return view('courses.show', compact('course'));
@@ -37,10 +51,10 @@ class MeetingController extends Controller
     {
         $this->authorize('manage', $course);
         $validated = $request->validate([
-            'meeting_number' => ['required', 'integer', 'min:1', 'max:16', Rule::unique('meetings')->where('course_id', $course->id)],
+            'meeting_number' => ['required', 'integer', 'min:1', 'max:50', Rule::unique('meetings')->where('course_id', $course->id)],
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'module_drive_link' => ['nullable', 'url', 'max:2048'],
+            'module_drive_link' => ['required', 'string', 'max:2048', DriveLink::rule()],
             'deadline' => ['nullable', 'date'],
         ]);
 
@@ -55,7 +69,7 @@ class MeetingController extends Controller
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'module_drive_link' => ['nullable', 'url', 'max:2048'],
+            'module_drive_link' => ['required', 'string', 'max:2048', DriveLink::rule()],
         ]);
 
         $meeting->update($validated);

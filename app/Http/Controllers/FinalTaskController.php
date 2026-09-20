@@ -8,14 +8,19 @@ use App\Models\Course;
 use App\Models\FinalTask;
 use App\Models\Submission;
 use App\Models\SubmissionHistory;
+use App\Services\DriveLink;
+use App\Services\SubmissionFileStorage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
+use Throwable;
 
 class FinalTaskController extends Controller
 {
+    public function __construct(private readonly SubmissionFileStorage $fileStorage) {}
+
     public function index(Request $request, FinalTask $finalTask): View
     {
         $this->authorize('manage', $finalTask->course);
@@ -23,24 +28,22 @@ class FinalTaskController extends Controller
 
         return view('final-tasks.index', [
             'finalTask' => $finalTask,
-            'submissions' => $finalTask->submissions()->where('is_final', true)->with('histories')->get()->keyBy('student_id'),
+            'submissions' => $finalTask->submissions()->where('is_final', true)->withCount('histories')->get()->keyBy('student_id'),
         ]);
-    }
-
-    public function store(Request $request, Course $course): RedirectResponse
-    {
-        $this->authorize('manage', $course);
-        $validated = $request->validate([
-            'description' => ['required', 'string', 'max:10000'],
-            'deadline' => ['nullable', 'date'],
-        ]);
-
-        $course->finalTask()->updateOrCreate([], $validated);
-
-        return back()->with('success', 'Tugas final berhasil diperbarui.');
     }
 
     public function submit(Request $request, FinalTask $finalTask): RedirectResponse
+    {
+        $this->authorize('participate', $finalTask->course);
+
+        return DB::transaction(function () use ($request, $finalTask) {
+            $locked = FinalTask::query()->whereKey($finalTask->id)->lockForUpdate()->firstOrFail();
+
+            return $this->createSubmission($request, $locked);
+        });
+    }
+
+    private function createSubmission(Request $request, FinalTask $finalTask): RedirectResponse
     {
         $this->authorize('participate', $finalTask->course);
         $validated = $this->validateSubmission($request);
@@ -50,30 +53,38 @@ class FinalTaskController extends Controller
             ->first();
 
         if ($existing) {
-            return $this->update($request, $existing);
+            abort(409, 'Laporan sudah dikirim. Buka ulang halaman untuk mengirim versi baru.');
         }
 
         if ($finalTask->deadline && now()->isAfter($finalTask->deadline)) {
             return back()->withInput()->with('error', 'Waktu pengumpulan sudah ditutup.');
         }
 
-        DB::transaction(function () use ($finalTask, $request, $validated): void {
-            $submission = $finalTask->submissions()->create([
-                'student_id' => $request->user()->id,
-                'submission_link' => $validated['submission_link'],
-                'notes' => $validated['notes'] ?? null,
-                'is_final' => true,
-                'first_upload_at' => now(),
-                'last_upload_at' => now(),
-                'aslab_status' => SubmissionStatus::PENDING->value,
-                'laboran_status' => SubmissionStatus::PENDING->value,
-                'dosen_status' => SubmissionStatus::PENDING->value,
-                'is_completed' => false,
-            ]);
-            $this->recordHistory($submission, 'Upload');
-        });
+        $document = $this->storeSubmissionDocument($request, $finalTask->course, $validated);
 
-        return redirect()->route('courses.show', $finalTask->course_id)->with('success', 'Laporan final berhasil dikumpulkan.');
+        try {
+            DB::transaction(function () use ($finalTask, $request, $validated, $document): void {
+                $submission = $finalTask->submissions()->create([
+                    'student_id' => $request->user()->id,
+                    ...$document,
+                    'notes' => $validated['notes'] ?? null,
+                    'is_final' => true,
+                    'first_upload_at' => now(),
+                    'last_upload_at' => now(),
+                    'aslab_status' => SubmissionStatus::PENDING->value,
+                    'laboran_status' => SubmissionStatus::PENDING->value,
+                    'dosen_status' => SubmissionStatus::PENDING->value,
+                    'is_completed' => false,
+                ]);
+                $this->recordHistory($submission, 'Upload');
+            });
+        } catch (Throwable $exception) {
+            $this->fileStorage->delete($document['file_path']);
+
+            throw $exception;
+        }
+
+        return redirect()->route('courses.show', $finalTask->course)->with('success', 'Laporan final berhasil dikumpulkan.');
     }
 
     public function update(Request $request, Submission $submission): RedirectResponse
@@ -81,30 +92,43 @@ class FinalTaskController extends Controller
         abort_unless($submission->is_final, 404);
         $submission->loadMissing('finalTask.course');
         $this->authorize('update', $submission);
-        $validated = $this->validateSubmission($request);
-        $isRevision = collect([$submission->aslab_status, $submission->laboran_status, $submission->dosen_status])
-            ->contains(SubmissionStatus::REVISION->value);
+        $validated = [...$this->validateSubmission($request), ...$request->validate(['document_version' => ['required', 'integer', 'min:1']])];
+        $isRevision = $submission->canResubmit();
 
         if (! $isRevision && $submission->finalTask->deadline && now()->isAfter($submission->finalTask->deadline)) {
             return back()->withInput()->with('error', 'Waktu pengumpulan sudah ditutup.');
         }
 
-        DB::transaction(function () use ($submission, $validated): void {
-            $locked = Submission::query()->whereKey($submission->id)->lockForUpdate()->firstOrFail();
-            $locked->update([
-                'submission_link' => $validated['submission_link'],
-                'notes' => $validated['notes'] ?? null,
-                'aslab_status' => $locked->aslab_status === SubmissionStatus::APPROVED->value ? SubmissionStatus::APPROVED->value : SubmissionStatus::PENDING->value,
-                'laboran_status' => $locked->laboran_status === SubmissionStatus::APPROVED->value ? SubmissionStatus::APPROVED->value : SubmissionStatus::PENDING->value,
-                'dosen_status' => SubmissionStatus::PENDING->value,
-                'dosen_acc_at' => null,
-                'is_completed' => false,
-                'last_upload_at' => now(),
-            ]);
-            $this->recordHistory($locked, 'Revision');
-        });
+        $document = $this->storeSubmissionDocument($request, $submission->finalTask->course, $validated);
 
-        return redirect()->route('courses.show', $submission->finalTask->course_id)->with('success', 'Perbaikan laporan final berhasil dikirim.');
+        try {
+            DB::transaction(function () use ($submission, $validated, $document): void {
+                $locked = Submission::query()->whereKey($submission->id)->lockForUpdate()->firstOrFail();
+                $this->authorize('update', $locked);
+                abort_unless((int) $validated['document_version'] === (int) $locked->document_version, 409, 'Versi dokumen berubah. Buka ulang halaman sebelum mengirim.');
+                abort_if(! $locked->canResubmit() && $locked->finalTask->deadline && now()->isAfter($locked->finalTask->deadline), 422, 'Waktu pengumpulan sudah ditutup.');
+                $locked->update([
+                    ...$document,
+                    'notes' => $validated['notes'] ?? null,
+                    'aslab_status' => SubmissionStatus::PENDING->value,
+                    'aslab_acc_at' => null,
+                    'document_version' => $locked->document_version + 1,
+                    'laboran_status' => SubmissionStatus::PENDING->value,
+                    'laboran_acc_at' => null,
+                    'dosen_status' => SubmissionStatus::PENDING->value,
+                    'dosen_acc_at' => null,
+                    'is_completed' => false,
+                    'last_upload_at' => now(),
+                ]);
+                $this->recordHistory($locked, 'Revision');
+            });
+        } catch (Throwable $exception) {
+            $this->fileStorage->delete($document['file_path']);
+
+            throw $exception;
+        }
+
+        return redirect()->route('courses.show', $submission->finalTask->course)->with('success', 'Perbaikan laporan final berhasil dikirim.');
     }
 
     public function approve(Request $request, Submission $submission): RedirectResponse
@@ -113,19 +137,26 @@ class FinalTaskController extends Controller
         $submission->loadMissing('finalTask.course');
         $this->authorize('review', $submission);
         $validated = $request->validate([
-            'status' => ['required', Rule::in(['ACC', 'REVISI'])],
-            'notes' => ['nullable', 'string', 'max:5000', 'required_if:status,REVISI'],
+            'status' => ['required', Rule::in(['ACC', 'REVISI', 'DITOLAK'])],
+            'document_version' => ['required', 'integer', 'min:1'],
+            'notes' => ['nullable', 'string', 'max:5000', Rule::requiredIf(fn () => in_array($request->input('status'), ['REVISI', 'DITOLAK'], true))],
         ]);
-        $status = $validated['status'] === 'ACC' ? SubmissionStatus::APPROVED : SubmissionStatus::REVISION;
+        $status = match ($validated['status']) {
+            'ACC' => SubmissionStatus::APPROVED,
+            'DITOLAK' => SubmissionStatus::REJECTED,
+            default => SubmissionStatus::REVISION,
+        };
         $role = UserRole::normalize((string) $request->user()->role);
 
         DB::transaction(function () use ($submission, $validated, $status, $role): void {
             $locked = Submission::query()->whereKey($submission->id)->lockForUpdate()->firstOrFail();
+            abort_if($locked->is_completed, 409, 'Laporan telah selesai diverifikasi.');
+            abort_unless((int) $validated['document_version'] === (int) $locked->document_version, 409, 'Versi dokumen berubah. Buka ulang laporan sebelum memeriksa.');
 
             if ($role === UserRole::ASLAB) {
                 $locked->aslab_status = $status->value;
                 $locked->aslab_acc_at = $status === SubmissionStatus::APPROVED ? now() : null;
-                if ($status === SubmissionStatus::REVISION) {
+                if (in_array($status, [SubmissionStatus::REVISION, SubmissionStatus::REJECTED], true)) {
                     $locked->laboran_status = SubmissionStatus::PENDING->value;
                     $locked->laboran_acc_at = null;
                     $locked->dosen_status = SubmissionStatus::PENDING->value;
@@ -135,7 +166,7 @@ class FinalTaskController extends Controller
                 abort_unless($locked->aslab_status === SubmissionStatus::APPROVED->value, 422, 'Menunggu verifikasi Aslab.');
                 $locked->laboran_status = $status->value;
                 $locked->laboran_acc_at = $status === SubmissionStatus::APPROVED ? now() : null;
-                if ($status === SubmissionStatus::REVISION) {
+                if (in_array($status, [SubmissionStatus::REVISION, SubmissionStatus::REJECTED], true)) {
                     $locked->dosen_status = SubmissionStatus::PENDING->value;
                     $locked->dosen_acc_at = null;
                 }
@@ -156,7 +187,12 @@ class FinalTaskController extends Controller
                 && $locked->laboran_status === SubmissionStatus::APPROVED->value
                 && $locked->dosen_status === SubmissionStatus::APPROVED->value;
             $locked->save();
-            $this->recordHistory($locked, $status === SubmissionStatus::APPROVED ? 'ACC' : 'Revision', $validated['notes'] ?? null);
+            $action = match ($status) {
+                SubmissionStatus::APPROVED => 'ACC',
+                SubmissionStatus::REJECTED => 'Rejected',
+                default => 'Revision',
+            };
+            $this->recordHistory($locked, $action, $validated['notes'] ?? null);
         });
 
         return back()->with('success', "Status {$validated['status']} berhasil disimpan.");
@@ -207,15 +243,34 @@ class FinalTaskController extends Controller
     private function validateSubmission(Request $request): array
     {
         return $request->validate([
-            'submission_link' => ['required', 'url', 'max:2048'],
+            'submission_file' => ['prohibited'],
+            'submission_link' => ['required', 'string', 'max:2048', DriveLink::rule()],
             'notes' => ['nullable', 'string', 'max:5000'],
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array{submission_link: ?string, file_path: ?string, original_filename: ?string, file_size: ?int}
+     */
+    private function storeSubmissionDocument(Request $request, Course $course, array $validated): array
+    {
+        return [
+            'submission_link' => $validated['submission_link'],
+            'file_path' => null,
+            'original_filename' => null,
+            'file_size' => null,
+        ];
     }
 
     private function recordHistory(Submission $submission, string $action, ?string $feedback = null): SubmissionHistory
     {
         return $submission->histories()->create([
-            'drive_link' => $submission->submission_link,
+            'document_version' => $submission->document_version ?? 1,
+            'drive_link' => $submission->submission_link ?? '',
+            'file_path' => $submission->file_path,
+            'original_filename' => $submission->original_filename,
+            'file_size' => $submission->file_size,
             'iteration' => $submission->histories()->max('iteration') + 1,
             'feedback' => $feedback,
             'action_type' => $action,

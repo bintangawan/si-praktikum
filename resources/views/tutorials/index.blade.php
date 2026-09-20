@@ -1,7 +1,7 @@
 <x-app-layout>
     <div class="mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-            <h2 class="text-2xl font-black text-emerald-950 tracking-tight">Tutorial & Panduan</h2>
+            <h2 class="text-2xl font-semibold text-emerald-950 tracking-tight">Tutorial & Panduan</h2>
             <p class="text-xs text-gray-500 font-medium">Kumpulan materi instruksional berupa dokumen PDF dan video demonstrasi.</p>
         </div>
 
@@ -17,7 +17,7 @@
                 <div x-show="modalOpen" @click.away="modalOpen = false" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4" style="display: none;">
                     <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-100">
                         <div class="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
-                            <h3 class="text-base font-black text-gray-800">Unggah Tutorial Baru</h3>
+                            <h3 class="text-base font-semibold text-gray-800">Unggah Tutorial Baru</h3>
                             <button @click="modalOpen = false" class="text-gray-400 hover:text-gray-600">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                             </button>
@@ -26,12 +26,12 @@
                         <form action="{{ route('tutorials.store') }}" method="POST" class="space-y-4">
                             @csrf
                             <div>
-                                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Judul Tutorial</label>
+                                <label class="block text-xs font-bold text-gray-700 tracking-wider mb-1">Judul Tutorial</label>
                                 <input type="text" name="title" required class="w-full text-xs rounded-xl border-gray-200 focus:border-emerald-500 focus:ring-emerald-500" placeholder="Contoh: Tata Cara Pembuatan Laprak">
                             </div>
 
                             <div>
-                                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Tipe Konten</label>
+                                <label class="block text-xs font-bold text-gray-700 tracking-wider mb-1">Tipe Konten</label>
                                 <select name="type" required class="w-full text-xs rounded-xl border-gray-200 focus:border-emerald-500 focus:ring-emerald-500">
                                     <option value="youtube">Video YouTube</option>
                                     <option value="gdrive_pdf">Google Drive (PDF / Dokumen)</option>
@@ -39,13 +39,13 @@
                             </div>
 
                             <div>
-                                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">URL / Link</label>
+                                <label class="block text-xs font-bold text-gray-700 tracking-wider mb-1">URL / Link</label>
                                 <input type="url" name="url" required class="w-full text-xs rounded-xl border-gray-200 focus:border-emerald-500 focus:ring-emerald-500" placeholder="https://www.youtube.com/watch?v=... atau link Drive">
-                                <span class="text-[10px] text-gray-400">Pastikan tautan Google Drive disetel ke "Siapa saja yang memiliki link".</span>
+                                <span class="text-xs text-gray-400">Pastikan tautan Google Drive disetel ke "Siapa saja yang memiliki link".</span>
                             </div>
 
                             <div>
-                                <label class="block text-xs font-bold text-gray-700 uppercase tracking-wider mb-1">Deskripsi Singkat</label>
+                                <label class="block text-xs font-bold text-gray-700 tracking-wider mb-1">Deskripsi Singkat</label>
                                 <textarea name="description" rows="3" class="w-full text-xs rounded-xl border-gray-200 focus:border-emerald-500 focus:ring-emerald-500" placeholder="Catatan singkat terkait tutorial ini..."></textarea>
                             </div>
 
@@ -80,7 +80,7 @@
                 <option value="gdrive_pdf" {{ request('type') === 'gdrive_pdf' ? 'selected' : '' }}>Google Drive (PDF)</option>
             </select>
 
-            <button type="submit" class="px-4 py-2 bg-amber-500 text-slate-900 text-xs font-black rounded-xl hover:bg-amber-400 transition shadow-sm flex items-center gap-1 shrink-0">
+            <button type="submit" class="px-4 py-2 bg-amber-500 text-slate-900 text-xs font-semibold rounded-xl hover:bg-amber-400 transition shadow-sm flex items-center gap-1 shrink-0">
                 Cari
             </button>
 
@@ -111,7 +111,8 @@
                     <div>
                         {{-- PLAYER EMBED (YouTube atau Iframe PDF Drive) --}}
                         <div class="aspect-video w-full bg-black">
-                            <iframe src="{{ $tutorial->embed_url }}" 
+                            <iframe src="{{ $tutorial->embed_url }}"
+                                    loading="lazy"
                                     class="w-full h-full border-0" 
                                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
                                     allowfullscreen>
@@ -121,11 +122,11 @@
                         <div class="p-5">
                             <div class="flex items-center gap-2 mb-2">
                                 @if($tutorial->type === 'youtube')
-                                    <span class="px-2 py-0.5 bg-red-50 text-red-600 text-[10px] font-black rounded-md uppercase tracking-wider">YouTube</span>
+                                    <span class="px-2 py-0.5 bg-red-50 text-red-600 text-xs font-semibold rounded-md tracking-wider">YouTube</span>
                                 @else
-                                    <span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-[10px] font-black rounded-md uppercase tracking-wider">PDF Drive</span>
+                                    <span class="px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-md tracking-wider">PDF Drive</span>
                                 @endif
-                                <span class="text-[10px] text-gray-400 font-mono">{{ $tutorial->created_at->format('d M Y') }}</span>
+                                <span class="text-xs text-gray-400">{{ $tutorial->created_at->format('d M Y') }}</span>
                             </div>
 
                             <h3 class="font-bold text-gray-800 text-base mb-1">{{ $tutorial->title }}</h3>
@@ -134,7 +135,7 @@
                     </div>
 
                     <div class="px-5 py-3 bg-emerald-50/20 border-t border-emerald-100 flex items-center justify-between">
-                        <span class="text-[10px] text-gray-400">Oleh: <strong class="text-gray-600">{{ $tutorial->author->name }}</strong></span>
+                        <span class="text-xs text-gray-400">Oleh: <strong class="text-gray-600">{{ $tutorial->author->name }}</strong></span>
                         
                         <div class="flex items-center gap-2">
                             <a href="{{ $tutorial->url }}" target="_blank" class="text-xs font-bold text-emerald-700 hover:text-emerald-900 transition">Buka Sumber asli &rarr;</a>
@@ -151,7 +152,11 @@
                         </div>
                     </div>
                 </div>
-            @endforeach
+        @endforeach
+
+        @if($tutorials->hasPages())
+            <div class="col-span-full mt-4">{{ $tutorials->links() }}</div>
+        @endif
         </div>
     @endif
 </x-app-layout>

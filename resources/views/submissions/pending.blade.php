@@ -16,11 +16,11 @@
                     <table class="min-w-[860px] w-full divide-y divide-gray-100">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Mahasiswa</th>
-                                <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Mata Kuliah</th>
-                                <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Jenis Tugas</th>
-                                <th class="px-6 py-4 text-left text-[10px] font-black text-gray-400 uppercase tracking-widest">Waktu Kirim</th>
-                                <th class="px-6 py-4 text-right text-[10px] font-black text-gray-400 uppercase tracking-widest">Aksi</th>
+                                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-400 tracking-normal">Mahasiswa</th>
+                                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-400 tracking-normal">Mata Kuliah</th>
+                                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-400 tracking-normal">Jenis Tugas</th>
+                                <th class="px-6 py-4 text-left text-xs font-semibold text-gray-400 tracking-normal">Waktu Kirim</th>
+                                <th class="px-6 py-4 text-right text-xs font-semibold text-gray-400 tracking-normal">Aksi</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100 bg-white">
@@ -38,7 +38,7 @@
                                 <tr class="hover:bg-gray-50/60 transition">
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <div class="text-sm font-bold text-gray-900">{{ $submission->student->name }}</div>
-                                        <div class="text-xs text-gray-400 font-mono">{{ $submission->student->id }}</div>
+                                        <div class="text-xs text-gray-400">{{ $submission->student->id }}</div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                         {{ $course?->course_name ?? 'Kelas tidak tersedia' }}
@@ -47,7 +47,7 @@
                                         @endif
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
-                                        <span class="inline-flex rounded-lg px-2.5 py-1 text-[10px] font-black uppercase tracking-wider {{ $isFinal ? 'bg-purple-50 text-purple-700' : 'bg-indigo-50 text-indigo-700' }}">
+                                        <span class="inline-flex rounded-lg px-2.5 py-1 text-xs font-semibold tracking-wider {{ $isFinal ? 'bg-slate-100 text-slate-700' : 'bg-emerald-50 text-emerald-700' }}">
                                             {{ $taskLabel }}
                                         </span>
                                     </td>
@@ -55,7 +55,7 @@
                                         {{ ($submission->last_upload_at ?? $submission->created_at)->diffForHumans() }}
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-right">
-                                        <a href="{{ $handlerRoute }}" class="inline-flex rounded-xl bg-indigo-600 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white hover:bg-indigo-700 transition">
+                                        <a href="{{ $handlerRoute }}" class="inline-flex rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold tracking-normal text-white hover:bg-emerald-700 transition">
                                             Review &amp; ACC
                                         </a>
                                     </td>
@@ -65,6 +65,7 @@
                     </table>
                 </div>
             @endif
+            @if($submissions->hasPages())<div class="p-6">{{ $submissions->links() }}</div>@endif
         </div>
     </div>
 </x-app-layout>

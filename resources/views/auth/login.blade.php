@@ -1,6 +1,26 @@
 <x-guest-layout>
+    @if ($errors->any())
+        <dialog
+            x-data
+            x-init="$nextTick(() => $el.showModal())"
+            @close="document.getElementById('password').focus()"
+            aria-labelledby="login-error-title"
+            aria-describedby="login-error-message"
+            class="m-auto w-[calc(100%_-_2rem)] max-w-sm rounded-2xl border border-slate-100 bg-white p-6 text-center shadow-2xl backdrop:bg-slate-900/40 backdrop:backdrop-blur-sm sm:p-8"
+        >
+            <div class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-rose-50 text-rose-600">
+                <svg class="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <h2 id="login-error-title" class="text-xl font-bold text-slate-900">Login gagal</h2>
+            <p id="login-error-message" class="mt-2 text-sm leading-6 text-slate-500">{{ $errors->first() }}</p>
+            <form method="dialog" class="mt-6">
+                <button autofocus type="submit" class="w-full rounded-xl bg-emerald-700 px-5 py-3 text-sm font-bold text-white transition hover:bg-emerald-800 focus:outline-none focus:ring-4 focus:ring-emerald-500/20">Coba lagi</button>
+            </form>
+        </dialog>
+    @endif
+
     <div class="mb-8">
-        <span class="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-emerald-700 ring-1 ring-inset ring-emerald-600/10">
+        <span class="inline-flex items-center rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-emerald-700 ring-1 ring-inset ring-emerald-600/10">
             Portal Praktikum
         </span>
         <h2 class="mt-4 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Selamat datang kembali</h2>
@@ -26,7 +46,6 @@
                        placeholder="Contoh: 0701231001"
                        required autofocus autocomplete="username">
             </div>
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
         </div>
 
         <div>
@@ -46,7 +65,6 @@
                     <svg x-show="showPassword" x-cloak class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.477 0-8.268-2.943-9.542-7a9.956 9.956 0 012.293-3.95m3.249-2.323A9.96 9.96 0 0112 5c4.478 0 8.268 2.943 9.542 7a9.97 9.97 0 01-1.563 2.87M15 12a3 3 0 00-3-3m-7-6l14 18"/></svg>
                 </button>
             </div>
-            <x-input-error :messages="$errors->get('password')" class="mt-2" />
         </div>
 
         <div class="flex flex-wrap items-center justify-between gap-3">
@@ -61,9 +79,10 @@
             @endif
         </div>
 
-        <button type="submit" class="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-700 to-teal-600 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-700/20 transition hover:-translate-y-0.5 hover:from-emerald-800 hover:to-teal-700 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-emerald-500/20 active:translate-y-0">
+        <button type="submit" class="group inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-700 px-5 py-3.5 text-sm font-bold text-white shadow-lg shadow-emerald-700/20 transition hover:-translate-y-0.5 hover:bg-emerald-800 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-emerald-500/20 active:translate-y-0">
             Masuk ke Sistem
             <svg class="h-4 w-4 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
         </button>
     </form>
+<p class="mt-6 text-center text-sm text-slate-500">Belum punya akun? <a class="font-semibold text-emerald-700" href="{{ route('register') }}">Daftar mahasiswa</a></p>
 </x-guest-layout>

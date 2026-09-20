@@ -13,46 +13,46 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
 
-{{-- 
+{{--
   1. Tambah variabel `ready: false`
-  2. x-init: Saat komponen siap, ubah `ready` jadi true. 
+  2. x-init: Saat komponen siap, ubah `ready` jadi true.
      Animasi (transition-all) hanya akan aktif JIKA `ready` bernilai true.
 --}}
-<body class="font-sans antialiased bg-gray-50 text-gray-900" 
-      x-data="{ 
-        sidebarOpen: localStorage.getItem('sidebarState') !== null ? localStorage.getItem('sidebarState') === 'true' : window.innerWidth >= 1024,
+<body @keydown.escape.window="sidebarOpen = false" class="font-sans antialiased bg-gray-50 text-gray-900"
+      x-data="{
+        sidebarOpen: window.innerWidth >= 1024 && localStorage.getItem('sidebarState') !== 'false',
         ready: false
       }"
       x-init="
-        $watch('sidebarOpen', value => localStorage.setItem('sidebarState', value));
+        $watch('sidebarOpen', value => { if (window.innerWidth >= 1024) localStorage.setItem('sidebarState', value); });
         setTimeout(() => ready = true, 50); // Aktifkan transisi sesaat setelah render
       ">
-    
-    <div class="flex flex-col h-screen overflow-hidden">
-        
+
+    <div class="flex h-[100dvh] flex-col overflow-hidden">
+
         {{-- TOP BAR --}}
         <header class="flex-shrink-0 flex items-center justify-between px-4 sm:px-6 py-3 bg-white border-b border-gray-200 shadow-sm z-50">
             <div class="flex items-center gap-4 sm:gap-6">
-                <button @click="sidebarOpen = !sidebarOpen" class="text-gray-500 p-2 hover:bg-gray-100 rounded-lg transition focus:outline-none active:scale-95">
+                <button aria-label="Buka atau tutup navigasi" :aria-expanded="sidebarOpen" @click="sidebarOpen = !sidebarOpen" class="text-gray-500 p-2 hover:bg-gray-100 rounded-lg transition focus:outline-none active:scale-95">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
                 </button>
-                <span class="text-xl font-black tracking-tighter uppercase text-indigo-900">SI-<span class="text-indigo-500">Praktikum</span></span>
+                <span class="text-xl font-semibold tracking-tighter text-emerald-900">SI-<span class="text-emerald-500">Praktikum</span></span>
             </div>
-            
+
             {{-- Kanan: Profile Dropdown --}}
             <div class="relative flex-shrink-0" x-data="{ open: false }">
                 <button @click="open = !open" class="flex items-center space-x-3 focus:outline-none group p-1.5 hover:bg-gray-50 rounded-full transition max-w-[200px] sm:max-w-[300px]">
                     <div class="text-right hidden sm:block min-w-0 flex-1">
-                        <p class="text-sm font-bold text-gray-800 group-hover:text-indigo-600 transition truncate" title="{{ Auth::user()->name }}">
+                        <p class="text-sm font-bold text-gray-800 group-hover:text-emerald-600 transition truncate" title="{{ Auth::user()->name }}">
                             {{ Auth::user()->name }}
                         </p>
-                        <p class="text-[10px] text-gray-500 font-medium italic uppercase tracking-tighter">{{ Auth::user()->role }}</p>
+                        <p class="text-xs text-gray-500 font-medium italic tracking-tighter">{{ Auth::user()->role }}</p>
                     </div>
                     <div class="w-10 h-10 rounded-full overflow-hidden border-2 border-white shadow-sm ring-1 ring-gray-200 flex-shrink-0">
                         @if(Auth::user()->avatar)
                             <img src="{{ asset('storage/' . Auth::user()->avatar) }}" alt="{{ Auth::user()->name }}" class="w-full h-full object-cover">
                         @else
-                            <div class="w-full h-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold uppercase text-sm">
+                            <div class="w-full h-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-sm">
                                 {{ substr(Auth::user()->name, 0, 1) }}
                             </div>
                         @endif
@@ -65,13 +65,13 @@
                      x-transition:enter-end="transform opacity-100 scale-100"
                      class="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50"
                      style="display: none;">
-                    
+
                     <div class="px-4 py-2 border-b border-gray-50 mb-1 sm:hidden">
                         <p class="text-xs font-bold text-gray-800 break-words">{{ Auth::user()->name }}</p>
-                        <p class="text-[10px] text-gray-400">{{ Auth::user()->role }}</p>
+                        <p class="text-xs text-gray-400">{{ Auth::user()->role }}</p>
                     </div>
 
-                    <a href="{{ route('profile.edit') }}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-indigo-50 hover:text-indigo-600 transition">
+                    <a href="{{ route('profile.edit') }}" class="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 transition">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
                         Edit Profil
                     </a>
@@ -89,15 +89,15 @@
 
         {{-- BOTTOM SECTION --}}
         <div class="flex flex-1 overflow-hidden relative">
-            
+
             {{-- SIDEBAR: Tambahkan class dinamis `:class="ready ? 'transition-all duration-300' : ''"` --}}
-            <aside :class="[
-                       sidebarOpen ? 'translate-x-0 lg:ml-0' : '-translate-x-full lg:-ml-64',
+            <aside x-cloak :class="[
+                       sidebarOpen ? 'translate-x-0 lg:ml-0' : '-translate-x-full lg:-ml-56',
                        ready ? 'transition-all duration-300' : ''
-                   ]" 
-                   class="absolute inset-y-0 left-0 z-40 w-64 bg-indigo-900 text-white transform lg:static lg:inset-0 shadow-xl flex flex-col">
-                
-                <nav class="flex-1 py-6 px-4 space-y-1 overflow-y-auto custom-scrollbar">
+                   ]"
+                   class="absolute inset-y-0 left-0 z-40 w-56 shrink-0 border-r border-slate-200 bg-white text-slate-700 transform lg:static lg:inset-0 shadow-xl flex flex-col">
+
+                <nav @click="if (window.innerWidth < 1024) sidebarOpen = false" class="flex-1 py-6 px-4 space-y-1 overflow-y-auto custom-scrollbar">
                     <x-nav-link-sidebar :href="route('dashboard')" :active="request()->routeIs('dashboard')">
                         <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
                         Dashboard
@@ -116,10 +116,13 @@
                         Tutorial
                     </x-nav-link-sidebar>
 
-                    <div class="my-4 border-t border-indigo-800/50"></div>
+                    <div class="my-4 border-t border-emerald-800/50"></div>
 
+                    @if(auth()->user()->hasRole('Laboran', 'Aslab'))
+                        <x-nav-link-sidebar :href="route('accounts.approvals')" :active="request()->routeIs('accounts.*')">Verifikasi mahasiswa</x-nav-link-sidebar>
+                    @endif
                     @if(auth()->user()->role === 'Laboran')
-                        <p class="px-4 text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-2">Laboran</p>
+                        <p class="px-4 text-xs font-bold text-emerald-400 tracking-normal mb-2">Laboran</p>
                         <x-nav-link-sidebar :href="route('users.index')" :active="request()->routeIs('users.index')">
                             <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
                             Manajemen User
@@ -143,21 +146,21 @@
                         </x-nav-link-sidebar>
 
                     @elseif(auth()->user()->role === 'Dosen')
-                        <p class="px-4 text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-2">Dosen</p>
+                        <p class="px-4 text-xs font-bold text-emerald-400 tracking-normal mb-2">Dosen</p>
                         <x-nav-link-sidebar :href="route('submissions.pending')" :active="request()->routeIs('submissions.pending')">
                             <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                             Periksa Laprak
                         </x-nav-link-sidebar>
 
                     @elseif(auth()->user()->role === 'Aslab')
-                        <p class="px-4 text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-2">Aslab</p>
+                        <p class="px-4 text-xs font-bold text-emerald-400 tracking-normal mb-2">Aslab</p>
                         <x-nav-link-sidebar :href="route('submissions.pending')" :active="request()->routeIs('submissions.pending')">
                             <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                             Periksa Laprak
                         </x-nav-link-sidebar>
 
                     @elseif(auth()->user()->role === 'Mahasiswa')
-                        <p class="px-4 text-[10px] font-bold text-indigo-400 uppercase tracking-widest mb-2">Mahasiswa</p>
+                        <p class="px-4 text-xs font-bold text-emerald-400 tracking-normal mb-2">Mahasiswa</p>
                         <x-nav-link-sidebar :href="route('submissions.my-index')" :active="request()->routeIs('submissions.my-index')">
                         <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
                             Tugas Saya
@@ -166,12 +169,12 @@
                 </nav>
             </aside>
 
-            <main class="flex-1 overflow-x-hidden overflow-y-auto bg-gray-50/50 p-6 md:p-10 w-full relative">
+            <main class="relative w-full min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-slate-50/50 p-4 sm:p-5 md:p-6">
                 <div class="max-w-7xl mx-auto">
                     @if(isset($header_title) || isset($header))
                         <div class="mb-8 border-b border-gray-200 pb-5">
                             @isset($header_title)
-                                <h1 class="text-2xl md:text-3xl font-black text-gray-900 tracking-tight uppercase">
+                                <h1 class="text-2xl md:text-3xl font-semibold text-gray-900 tracking-tight">
                                     {{ $header_title }}
                                 </h1>
                             @else
@@ -181,8 +184,8 @@
                     @endif
 
                     @if(session('success'))
-                        <div x-data="{ show: true }" 
-                            x-show="show" 
+                        <div x-data="{ show: true }"
+                            x-show="show"
                             x-init="setTimeout(() => show = false, 5000)" {{-- Pesan hilang otomatis setelah 5 detik --}}
                             class="mb-6 p-4 bg-emerald-50 border-l-4 border-emerald-500 text-emerald-700 text-sm font-bold rounded shadow-lg flex items-center justify-between animate-fade-in">
                             <div class="flex items-center">
@@ -196,17 +199,17 @@
                     @endif
 
                     @if(session('info'))
-                        <div x-data="{ show: true }" x-show="show" class="mb-6 p-4 bg-blue-50 border-l-4 border-blue-500 text-blue-700 text-sm font-bold rounded shadow-lg flex items-center justify-between">
+                        <div x-data="{ show: true }" x-show="show" class="mb-6 flex items-center justify-between rounded border-l-4 border-amber-500 bg-amber-50 p-4 text-sm font-bold text-amber-800 shadow-lg">
                             <span>{{ session('info') }}</span>
-                            <button type="button" @click="show = false" class="text-blue-400 hover:text-blue-600" aria-label="Tutup pemberitahuan">
+                            <button type="button" @click="show = false" class="text-amber-600 hover:text-amber-800" aria-label="Tutup pemberitahuan">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                             </button>
                         </div>
                     @endif
 
                     @if(session('error'))
-                        <div x-data="{ show: true }" 
-                            x-show="show" 
+                        <div x-data="{ show: true }"
+                            x-show="show"
                             class="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm font-bold rounded shadow-lg flex items-center justify-between">
                             <div class="flex items-center">
                                 <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
@@ -217,6 +220,7 @@
                             </button>
                         </div>
                     @endif
+                    @if(isset($course) && !$course->semester->is_active)<p class="mb-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">Kelas arsip hanya dapat dibaca.</p>@endif
                     {{ $slot }}
                 </div>
             </main>

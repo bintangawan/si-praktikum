@@ -67,6 +67,8 @@ class UserImport implements SkipsEmptyRows, ToModel, WithHeadingRow
 
             'role' => $role->value,
             'is_first_login' => true,
+            'approved_at' => $role === UserRole::MAHASISWA ? null : now(),
+            'approved_by' => $role === UserRole::MAHASISWA ? null : auth()->id(),
         ]);
 
         // Tambahkan data ke laporan sukses untuk ditampilkan di view nanti

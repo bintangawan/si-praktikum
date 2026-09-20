@@ -21,7 +21,7 @@
                 <div class="mt-2 mb-4">
                     <img src="{{ asset('storage/' . $user->avatar) }}" 
                          alt="Avatar" 
-                         class="h-20 w-20 rounded-full object-cover border-2 border-indigo-500 shadow-sm">
+                         class="h-20 w-20 rounded-full object-cover border-2 border-emerald-500 shadow-sm">
                 </div>
             @else
                 <div class="mt-2 mb-4">
@@ -35,7 +35,7 @@
                 class="mt-1 block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none" 
                 accept="image/*">
             
-            <p class="mt-1 text-[10px] text-gray-500 uppercase tracking-wider">Maksimal 1 MB (JPG, PNG, WEBP)</p>
+            <p class="mt-1 text-xs text-gray-500 tracking-wider">Maksimal 1 MB (JPG, PNG, WEBP)</p>
             <x-input-error class="mt-2" :messages="$errors->get('avatar')" />
         </div>
 

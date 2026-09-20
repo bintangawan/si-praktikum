@@ -32,6 +32,7 @@ class ApplicationPagesSmokeTest extends TestCase
             'profile' => route('profile.edit'),
             'courses' => route('courses.index'),
             'create course' => route('courses.create'),
+            'edit course' => route('courses.edit', $fixture['course']),
             'course detail' => route('courses.show', $fixture['course']),
             'archives' => route('archives.index'),
             'tutorials' => route('tutorials.index'),

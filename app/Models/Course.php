@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class Course extends Model
 {
@@ -16,6 +17,33 @@ class Course extends Model
         'aslab_id',
         'enrollment_code',
     ];
+
+    protected static function booted(): void
+    {
+        static::saving(function (Course $course): void {
+            if ($course->slug && ! $course->isDirty(['course_name', 'class_group'])) {
+                return;
+            }
+
+            $base = Str::slug(trim($course->course_name.' '.$course->class_group)) ?: 'kelas';
+            $slug = $base;
+            $counter = 2;
+
+            while (static::query()
+                ->where('slug', $slug)
+                ->when($course->exists, fn ($query) => $query->where($course->getKeyName(), '!=', $course->getKey()))
+                ->exists()) {
+                $slug = $base.'-'.$counter++;
+            }
+
+            $course->slug = $slug;
+        });
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'slug';
+    }
 
     // Relasi ke Semester
     public function semester()

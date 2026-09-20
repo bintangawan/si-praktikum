@@ -53,7 +53,7 @@ class UserController extends Controller
 
     public function makeAslab(Request $request, User $user): RedirectResponse
     {
-        if (! $user->hasRole(UserRole::MAHASISWA)) {
+        if (! $user->hasRole(UserRole::MAHASISWA) || ! $user->approved_at) {
             return back()->with('error', 'Hanya mahasiswa yang dapat diangkat menjadi Aslab.');
         }
 
@@ -68,7 +68,7 @@ class UserController extends Controller
             return back()->with('error', 'Pengguna tersebut bukan Aslab.');
         }
 
-        if (Course::query()->where('aslab_id', $user->id)->exists()) {
+        if (Course::query()->where('aslab_id', $user->id)->whereHas('semester', fn ($q) => $q->where('is_active', true))->exists()) {
             return back()->with('error', 'Aslab masih ditugaskan pada kelas. Ganti penugasan terlebih dahulu.');
         }
 

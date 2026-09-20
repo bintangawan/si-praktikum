@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <title>Rekap Presensi - {{ $course->course_name }}</title>
     <style>
-        body { font-family: sans-serif; font-size: 10px; color: #333; }
+        body { font-family: 'Poppins', 'DejaVu Sans', sans-serif; font-size: 10px; color: #334155; }
         .header { text-align: center; margin-bottom: 15px; }
         .header h2 { margin: 0; text-transform: uppercase; font-size: 14px; }
         .header p { margin: 3px 0 0 0; color: #666; font-size: 10px; }

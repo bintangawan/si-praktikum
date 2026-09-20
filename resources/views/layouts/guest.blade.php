@@ -15,11 +15,10 @@
     <body class="font-sans text-slate-900 antialiased">
         <main class="relative min-h-screen min-h-[100dvh] overflow-hidden bg-slate-50">
             <div class="pointer-events-none absolute -left-28 -top-28 h-72 w-72 rounded-full bg-emerald-200/50 blur-3xl"></div>
-            <div class="pointer-events-none absolute -bottom-36 -right-24 h-96 w-96 rounded-full bg-teal-200/40 blur-3xl"></div>
+            <div class="pointer-events-none absolute -bottom-36 -right-24 h-96 w-96 rounded-full bg-emerald-200/40 blur-3xl"></div>
 
             <div class="relative mx-auto grid min-h-screen min-h-[100dvh] max-w-[1440px] lg:grid-cols-[1.05fr_0.95fr]">
-                <section class="relative hidden overflow-hidden bg-gradient-to-br from-emerald-950 via-emerald-900 to-teal-800 px-12 py-12 text-white lg:flex lg:flex-col lg:justify-between xl:px-20 xl:py-16">
-                    <div class="pointer-events-none absolute inset-0 opacity-20" style="background-image: radial-gradient(circle at 1px 1px, rgba(255,255,255,.5) 1px, transparent 0); background-size: 28px 28px;"></div>
+                <section class="relative hidden overflow-hidden bg-emerald-950 px-12 py-12 text-white lg:flex lg:flex-col lg:justify-between xl:px-20 xl:py-16">
                     <div class="pointer-events-none absolute -right-24 top-1/4 h-80 w-80 rounded-full border border-white/10"></div>
                     <div class="pointer-events-none absolute -right-8 top-1/3 h-52 w-52 rounded-full border border-white/10"></div>
 
@@ -28,7 +27,7 @@
                             <img src="{{ asset('images/logo-uinsu.png') }}" alt="Logo UIN Sumatera Utara" class="h-full w-full object-contain">
                         </span>
                         <span>
-                            <span class="block text-[10px] font-semibold uppercase tracking-[0.24em] text-emerald-200">UIN Sumatera Utara</span>
+                            <span class="block text-xs font-semibold uppercase tracking-[0.18em] text-emerald-200">UIN Sumatera Utara</span>
                             <span class="block text-lg font-bold tracking-tight">SI-Praktikum</span>
                         </span>
                     </a>
@@ -71,7 +70,7 @@
                                 <img src="{{ asset('images/logo-uinsu.png') }}" alt="Logo UIN Sumatera Utara" class="h-full w-full object-contain">
                             </span>
                             <span class="text-left">
-                                <span class="block text-[9px] font-semibold uppercase tracking-[0.2em] text-emerald-700">UIN Sumatera Utara</span>
+                                <span class="block text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">UIN Sumatera Utara</span>
                                 <span class="block text-lg font-extrabold tracking-tight text-slate-900">SI-Praktikum</span>
                             </span>
                         </a>

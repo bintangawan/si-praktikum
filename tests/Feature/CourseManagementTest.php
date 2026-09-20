@@ -2,7 +2,9 @@
 
 namespace Tests\Feature;
 
+use App\Models\Attendance;
 use App\Models\Course;
+use App\Models\Meeting;
 use App\Models\Semester;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -23,17 +25,41 @@ class CourseManagementTest extends TestCase
             'target_semester' => 3,
             'dosen_id' => $dosen->id,
             'aslab_id' => $aslab->id,
+            'modules' => [
+                [
+                    'meeting_number' => 1,
+                    'title' => 'Pengenalan Laravel',
+                    'description' => 'Buat laporan praktikum pertama.',
+                    'module_drive_link' => 'https://drive.google.com/file/d/module-1/view',
+                    'deadline' => now()->addWeek()->format('Y-m-d H:i:s'),
+                ],
+                [
+                    'meeting_number' => 2,
+                    'title' => 'Routing dan Controller',
+                    'module_drive_link' => 'https://drive.google.com/file/d/module-2/view',
+                ],
+            ],
         ]);
 
-        $response->assertRedirect(route('courses.index'))
-            ->assertSessionHas('success', 'Kelas berhasil dibuat.');
-
         $course = Course::query()->sole();
+        $response->assertRedirect(route('courses.show', $course))
+            ->assertSessionHas('success', 'Kelas dan 2 modul berhasil dibuat.');
+
         $this->assertSame('Pemrograman Web', $course->course_name);
         $this->assertSame('TI-3A', $course->class_group);
         $this->assertSame($semester->id, $course->semester_id);
         $this->assertSame($laboran->id, $course->laboran_id);
+        $this->assertSame('pemrograman-web-ti-3a', $course->slug);
         $this->assertNotEmpty($course->enrollment_code);
+        $this->assertSame(2, $course->meetings()->count());
+        $this->assertDatabaseHas('meetings', [
+            'course_id' => $course->id,
+            'meeting_number' => 1,
+            'title' => 'Pengenalan Laravel',
+        ]);
+
+        $this->assertStringContainsString('/courses/pemrograman-web-ti-3a', route('courses.show', $course));
+        $this->actingAs($laboran)->get("/courses/{$course->id}/students")->assertNotFound();
 
         $this->actingAs($laboran)->get(route('courses.index'))
             ->assertOk()
@@ -101,10 +127,20 @@ class CourseManagementTest extends TestCase
             ->assertSee('Algoritma');
     }
 
-    public function test_only_laboran_can_add_and_remove_students_from_a_course_roster(): void
+    public function test_laboran_and_assigned_aslab_can_search_and_add_students_but_only_laboran_can_remove_them(): void
     {
         [$laboran, $dosen, $aslab, $semester] = $this->staffFixture();
-        $student = User::factory()->create(['role' => 'Mahasiswa']);
+        $student = User::factory()->create([
+            'id' => '0701231001',
+            'name' => 'Ahmad Fauzan',
+            'role' => 'Mahasiswa',
+        ]);
+        $secondStudent = User::factory()->create([
+            'id' => '0701231002',
+            'name' => 'Siti Aminah',
+            'role' => 'Mahasiswa',
+        ]);
+        $unassignedAslab = User::factory()->create(['role' => 'Aslab']);
         $course = Course::query()->create([
             'semester_id' => $semester->id,
             'course_name' => 'Struktur Data',
@@ -118,8 +154,20 @@ class CourseManagementTest extends TestCase
 
         $this->actingAs($laboran)->get(route('courses.students', $course))
             ->assertOk()
-            ->assertSee($student->name)
+            ->assertSee('Ketik nama atau NIM mahasiswa')
+            ->assertSee('Saran muncul setelah 3 karakter')
             ->assertSee('Tambahkan ke Kelas');
+
+        $this->actingAs($laboran)
+            ->getJson(route('courses.search-students', $course).'?q=100')
+            ->assertOk()
+            ->assertJsonFragment(['id' => $student->id, 'name' => $student->name])
+            ->assertJsonFragment(['id' => $secondStudent->id, 'name' => $secondStudent->name]);
+
+        $this->actingAs($laboran)
+            ->getJson(route('courses.search-students', $course).'?q=10')
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('q');
 
         $this->actingAs($laboran)->post(route('courses.add-student', $course), [
             'student_id' => $student->id,
@@ -130,17 +178,50 @@ class CourseManagementTest extends TestCase
             'user_id' => $student->id,
         ]);
 
+        $this->actingAs($laboran)
+            ->getJson(route('courses.search-students', $course).'?q=Ahm')
+            ->assertOk()
+            ->assertJsonMissing(['id' => $student->id]);
+
         $this->actingAs($aslab)->post(route('courses.add-student', $course), [
+            'student_id' => $secondStudent->id,
+        ])->assertRedirect()->assertSessionHas('success');
+
+        $this->assertDatabaseHas('course_user', [
+            'course_id' => $course->id,
+            'user_id' => $secondStudent->id,
+        ]);
+
+        $this->actingAs($aslab)->get(route('courses.students', $course))
+            ->assertOk()
+            ->assertSee('Tambahkan ke Kelas');
+
+        $this->actingAs($unassignedAslab)
+            ->getJson(route('courses.search-students', $course).'?q=100')
+            ->assertForbidden();
+
+        $this->actingAs($unassignedAslab)->post(route('courses.add-student', $course), [
             'student_id' => $student->id,
         ])->assertForbidden();
 
+        $this->actingAs($aslab)->delete(route('courses.remove-student', [$course, $student]))
+            ->assertForbidden();
+
         $this->actingAs($laboran)->delete(route('courses.remove-student', [$course, $student]))
+            ->assertRedirect()
+            ->assertSessionHas('success');
+
+        $this->actingAs($laboran)->delete(route('courses.remove-student', [$course, $secondStudent]))
             ->assertRedirect()
             ->assertSessionHas('success');
 
         $this->assertDatabaseMissing('course_user', [
             'course_id' => $course->id,
             'user_id' => $student->id,
+        ]);
+        $this->assertDatabaseMissing('course_user', [
+            'course_id' => $course->id,
+            'user_id' => $secondStudent->id,
         ]);
     }
 
@@ -175,6 +256,103 @@ class CourseManagementTest extends TestCase
 
         $this->actingAs($aslab)->get(route('courses.create'))->assertForbidden();
         $this->actingAs($aslab)->post(route('courses.store'), [])->assertForbidden();
+    }
+
+    public function test_laboran_can_edit_course_information_and_staff_assignment(): void
+    {
+        [$laboran, $dosen, $aslab, $semester] = $this->staffFixture();
+        $replacementDosen = User::factory()->create(['role' => 'Dosen']);
+        $replacementAslab = User::factory()->create(['role' => 'Aslab']);
+        $course = Course::query()->create([
+            'semester_id' => $semester->id,
+            'course_name' => 'Kelas Salah',
+            'class_group' => 'a',
+            'target_semester' => 2,
+            'dosen_id' => $dosen->id,
+            'laboran_id' => $laboran->id,
+            'aslab_id' => $aslab->id,
+            'enrollment_code' => 'EDIT1234',
+        ]);
+
+        $this->actingAs($laboran)->put(route('courses.update', $course), [
+            'course_name' => '  Rekayasa   Perangkat Lunak ',
+            'class_group' => ' ti-4a ',
+            'target_semester' => 4,
+            'dosen_id' => $replacementDosen->id,
+            'aslab_id' => $replacementAslab->id,
+        ])->assertRedirect();
+
+        $course->refresh();
+        $this->assertSame('Rekayasa Perangkat Lunak', $course->course_name);
+        $this->assertSame('TI-4A', $course->class_group);
+        $this->assertSame('rekayasa-perangkat-lunak-ti-4a', $course->slug);
+        $this->assertSame($replacementDosen->id, $course->dosen_id);
+        $this->assertDatabaseHas('course_staff_histories', [
+            'course_id' => $course->id,
+            'previous_dosen_id' => $dosen->id,
+            'dosen_id' => $replacementDosen->id,
+            'changed_by' => $laboran->id,
+        ]);
+
+        $this->actingAs($aslab)->get(route('courses.edit', $course))->assertForbidden();
+        $this->actingAs($aslab)->put(route('courses.update', $course), [])->assertForbidden();
+    }
+
+    public function test_laboran_can_delete_an_unused_course_but_academic_records_are_protected(): void
+    {
+        [$laboran, $dosen, $aslab, $semester] = $this->staffFixture();
+        $unused = Course::query()->create([
+            'semester_id' => $semester->id,
+            'course_name' => 'Kelas Duplikat',
+            'class_group' => 'A',
+            'target_semester' => 1,
+            'dosen_id' => $dosen->id,
+            'laboran_id' => $laboran->id,
+            'aslab_id' => $aslab->id,
+            'enrollment_code' => 'DELETE01',
+        ]);
+        $unusedMeeting = $unused->meetings()->create([
+            'meeting_number' => 1,
+            'title' => 'Modul kosong',
+            'module_drive_link' => 'https://drive.google.com/file/d/unused/view',
+        ]);
+        $student = User::factory()->create(['role' => 'Mahasiswa']);
+        $unused->students()->attach($student);
+
+        $this->actingAs($laboran)->delete(route('courses.destroy', $unused))
+            ->assertRedirect(route('courses.index'))
+            ->assertSessionHas('success');
+        $this->assertDatabaseMissing('courses', ['id' => $unused->id]);
+        $this->assertDatabaseMissing('meetings', ['id' => $unusedMeeting->id]);
+        $this->assertDatabaseMissing('course_user', ['course_id' => $unused->id]);
+
+        $protected = Course::query()->create([
+            'semester_id' => $semester->id,
+            'course_name' => 'Kelas Berjalan',
+            'class_group' => 'B',
+            'target_semester' => 1,
+            'dosen_id' => $dosen->id,
+            'laboran_id' => $laboran->id,
+            'aslab_id' => $aslab->id,
+            'enrollment_code' => 'DELETE02',
+        ]);
+        $meeting = Meeting::query()->create([
+            'course_id' => $protected->id,
+            'meeting_number' => 1,
+            'title' => 'Modul aktif',
+            'module_drive_link' => 'https://drive.google.com/file/d/active/view',
+        ]);
+        Attendance::query()->create([
+            'meeting_id' => $meeting->id,
+            'student_id' => $student->id,
+            'status' => 'Hadir',
+            'attendance_date' => now()->toDateString(),
+        ]);
+
+        $this->actingAs($laboran)->delete(route('courses.destroy', $protected))
+            ->assertRedirect()
+            ->assertSessionHas('error');
+        $this->assertDatabaseHas('courses', ['id' => $protected->id]);
     }
 
     /** @return array{User, User, User, Semester} */

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\DriveLink;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
@@ -10,9 +11,13 @@ class Submission extends Model
     use HasFactory;
 
     protected $fillable = [
+        'document_version',
         'student_id',
         'meeting_id',
         'submission_link',
+        'file_path',
+        'original_filename',
+        'file_size',
         'notes',
         'final_task_id',
         'is_final',
@@ -59,5 +64,43 @@ class Submission extends Model
     public function histories()
     {
         return $this->hasMany(SubmissionHistory::class)->orderBy('iteration', 'desc');
+    }
+
+    public function documentUrl(): ?string
+    {
+        return $this->file_path ? route('submissions.file', $this) : $this->submission_link;
+    }
+
+    public function previewUrl(): ?string
+    {
+        return $this->file_path ? $this->documentUrl() : DriveLink::preview($this->submission_link);
+    }
+
+    public function studentStatus(): string
+    {
+        $statuses = [$this->aslab_status, $this->laboran_status];
+
+        if ($this->is_final) {
+            $statuses[] = $this->dosen_status;
+        }
+
+        if (in_array('Ditolak', $statuses, true)) {
+            return 'Ditolak';
+        }
+
+        if (in_array('Revisi', $statuses, true)) {
+            return 'Revisi';
+        }
+
+        if ($this->is_completed) {
+            return 'Diterima';
+        }
+
+        return 'Menunggu pemeriksaan';
+    }
+
+    public function canResubmit(): bool
+    {
+        return in_array($this->studentStatus(), ['Revisi', 'Ditolak'], true);
     }
 }

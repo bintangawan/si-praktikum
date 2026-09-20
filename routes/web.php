@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AccountApprovalController;
 use App\Http\Controllers\ArchiveController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\CourseController;
@@ -7,22 +8,25 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinalTaskController;
 use App\Http\Controllers\FirstLoginController;
 use App\Http\Controllers\MeetingController;
+use App\Http\Controllers\ModuleEditorController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SemesterController;
 use App\Http\Controllers\SubmissionController;
+use App\Http\Controllers\SubmissionFileController;
 use App\Http\Controllers\TutorialController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\UserImportController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome');
+Route::get('account/pending', [AccountApprovalController::class, 'pending'])->middleware('auth')->name('account.pending');
 
 Route::middleware('auth')->group(function () {
     Route::get('force-change-password', [FirstLoginController::class, 'showChangePasswordForm'])->name('first.login.form');
     Route::post('force-change-password', [FirstLoginController::class, 'updatePassword'])->name('first.login.update');
 });
 
-Route::middleware(['auth', 'verified', 'password.changed'])->group(function () {
+Route::middleware(['auth', 'password.changed', 'account.approved', 'course.archive'])->group(function () {
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('profile', [ProfileController::class, 'update'])->name('profile.update');
@@ -33,6 +37,8 @@ Route::middleware(['auth', 'verified', 'password.changed'])->group(function () {
     Route::get('courses/{course}', [MeetingController::class, 'show'])->name('courses.show');
     Route::get('arsip', [ArchiveController::class, 'index'])->name('archives.index');
     Route::get('tutorials', [TutorialController::class, 'index'])->name('tutorials.index');
+    Route::get('submissions/{submission}/file', [SubmissionFileController::class, 'submission'])->name('submissions.file');
+    Route::get('submission-histories/{history}/file', [SubmissionFileController::class, 'history'])->name('submission-histories.file');
 
     Route::middleware('role:Mahasiswa')->group(function () {
         Route::post('courses/enroll', [CourseController::class, 'enroll'])->name('courses.enroll');
@@ -47,6 +53,8 @@ Route::middleware(['auth', 'verified', 'password.changed'])->group(function () {
     });
 
     Route::middleware('role:Aslab,Laboran,Dosen')->group(function () {
+        Route::get('courses/{course}/modules/edit', [ModuleEditorController::class, 'edit'])->name('courses.modules.edit');
+        Route::post('courses/{course}/modules', [ModuleEditorController::class, 'store'])->name('courses.modules.store');
         Route::post('courses/{course}/meetings', [MeetingController::class, 'store'])->name('meetings.store');
         Route::put('meetings/{meeting}', [MeetingController::class, 'update'])->name('meetings.update');
         Route::put('meetings/{meeting}/deadline', [SubmissionController::class, 'updateDeadline'])->name('meetings.update-deadline');
@@ -59,7 +67,6 @@ Route::middleware(['auth', 'verified', 'password.changed'])->group(function () {
         Route::get('meetings/{meeting}/submissions', [SubmissionController::class, 'index'])->name('submissions.index');
         Route::get('submissions/{submission}/handler', [SubmissionController::class, 'handler'])->name('submissions.handler');
         Route::post('submissions/{submission}/approve', [SubmissionController::class, 'approve'])->name('submissions.approve');
-        Route::post('courses/{course}/final-tasks', [FinalTaskController::class, 'store'])->name('final-tasks.store');
         Route::get('final-tasks/{finalTask}', [FinalTaskController::class, 'index'])->name('final-tasks.index');
         Route::put('final-tasks/{finalTask}/deadline', [FinalTaskController::class, 'updateDeadline'])->name('final-tasks.update-deadline');
         Route::put('final-tasks/{finalTask}/description', [FinalTaskController::class, 'updateDescription'])->name('final-tasks.update-description');
@@ -68,9 +75,21 @@ Route::middleware(['auth', 'verified', 'password.changed'])->group(function () {
         Route::get('submissions/pending', [SubmissionController::class, 'pending'])->name('submissions.pending');
     });
 
-    Route::middleware('role:Laboran')->group(function () {
-        Route::post('courses', [CourseController::class, 'store'])->name('courses.store');
+    Route::middleware('role:Aslab,Laboran')->group(function () {
+        Route::get('account-approvals', [AccountApprovalController::class, 'index'])->name('accounts.approvals');
+        Route::post('account-approvals/all', [AccountApprovalController::class, 'approveAll'])->name('accounts.approve-all');
+        Route::post('account-approvals/{user}', [AccountApprovalController::class, 'approve'])->name('accounts.approve');
+        Route::get('courses/{course}/students/search', [CourseController::class, 'searchStudents'])->name('courses.search-students');
         Route::post('courses/{course}/students', [CourseController::class, 'addStudent'])->name('courses.add-student');
+    });
+
+    Route::middleware('role:Laboran')->group(function () {
+        Route::get('courses/{course}/edit', [CourseController::class, 'edit'])->name('courses.edit');
+        Route::put('courses/{course}', [CourseController::class, 'update'])->name('courses.update');
+        Route::delete('courses/{course}', [CourseController::class, 'destroy'])->name('courses.destroy');
+        Route::get('courses/{course}/staff', [CourseController::class, 'editStaff'])->name('courses.staff.edit');
+        Route::put('courses/{course}/staff', [CourseController::class, 'updateStaff'])->name('courses.staff.update');
+        Route::post('courses', [CourseController::class, 'store'])->name('courses.store');
         Route::delete('courses/{course}/students/{student}', [CourseController::class, 'removeStudent'])->name('courses.remove-student');
         Route::get('import-users', [UserImportController::class, 'showImportForm'])->name('user.import.form');
         Route::post('import-users', [UserImportController::class, 'import'])->name('user.import');

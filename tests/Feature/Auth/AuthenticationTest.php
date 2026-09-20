@@ -34,10 +34,46 @@ class AuthenticationTest extends TestCase
     {
         $user = User::factory()->create();
 
-        $this->post('/login', [
+        $response = $this->followingRedirects()->from('/login')->post('/login', [
             'email' => $user->email,
             'password' => 'wrong-password',
         ]);
+
+        $this->assertGuest();
+        $response
+            ->assertSee('<dialog', false)
+            ->assertSee('Login gagal')
+            ->assertSee('Email atau password Anda salah. Silakan coba lagi.')
+            ->assertDontSee('auth.failed');
+    }
+
+    public function test_unknown_email_shows_the_same_login_error(): void
+    {
+        $this->from('/login')->post('/login', [
+            'email' => 'unknown@example.com',
+            'password' => 'wrong-password',
+        ])->assertSessionHasErrors([
+            'email' => 'Email atau password Anda salah. Silakan coba lagi.',
+        ]);
+
+        $this->assertGuest();
+    }
+
+    public function test_login_rate_limit_shows_a_readable_message(): void
+    {
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $this->post('/login', [
+                'email' => 'unknown@example.com',
+                'password' => 'wrong-password',
+            ]);
+        }
+
+        $this->followingRedirects()->from('/login')->post('/login', [
+            'email' => 'unknown@example.com',
+            'password' => 'wrong-password',
+        ])
+            ->assertSee('Terlalu banyak percobaan login.')
+            ->assertDontSee('auth.throttle');
 
         $this->assertGuest();
     }

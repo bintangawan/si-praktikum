@@ -9,9 +9,9 @@
     {{-- Banner Laprak Final --}}
     @include('courses.partials.final-task')
 
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <div class="space-y-6">
         {{-- Sidebar Informasi Kelas --}}
-        @include('courses.partials.sidebar')
+        <details class="rounded-2xl border border-slate-200 bg-white p-4"><summary class="cursor-pointer text-sm font-semibold text-emerald-800">Informasi kelas dan peserta</summary>@include('courses.partials.sidebar')</details>
 
         {{-- Daftar Materi & Pertemuan --}}
         @include('courses.partials.meeting-list')

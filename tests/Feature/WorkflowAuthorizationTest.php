@@ -60,7 +60,7 @@ class WorkflowAuthorizationTest extends TestCase
         ]);
 
         $this->actingAs($student)->post(route('submissions.store', $meeting), [
-            'submission_link' => 'https://example.test/laporan/1',
+            'submission_link' => 'https://drive.google.com/file/d/report-1/view',
             'notes' => 'Versi awal',
         ])->assertRedirect(route('courses.show', $course));
 
@@ -72,7 +72,7 @@ class WorkflowAuthorizationTest extends TestCase
             'action_type' => 'Upload',
         ]);
 
-        $this->actingAs($aslab)->post(route('submissions.approve', $submission), ['status' => 'ACC'])
+        $this->actingAs($aslab)->post(route('submissions.approve', $submission), ['status' => 'ACC', 'document_version' => 1])
             ->assertRedirect(route('submissions.index', $meeting));
 
         $this->assertDatabaseHas('submissions', ['id' => $submission->id, 'aslab_status' => 'ACC']);
@@ -94,17 +94,17 @@ class WorkflowAuthorizationTest extends TestCase
         ]);
 
         $this->actingAs($student)->post(route('final-tasks.submit', $finalTask), [
-            'submission_link' => 'https://example.test/laporan/final',
+            'submission_link' => 'https://drive.google.com/file/d/report-final/view',
         ])->assertRedirect(route('courses.show', $course));
 
         $submission = Submission::query()->sole();
-        $this->actingAs($laboran)->patch(route('final-tasks.approve', $submission), ['status' => 'ACC'])
+        $this->actingAs($laboran)->patch(route('final-tasks.approve', $submission), ['status' => 'ACC', 'document_version' => 1])
             ->assertStatus(422);
-        $this->actingAs($aslab)->patch(route('final-tasks.approve', $submission), ['status' => 'ACC'])
+        $this->actingAs($aslab)->patch(route('final-tasks.approve', $submission), ['status' => 'ACC', 'document_version' => 1])
             ->assertRedirect();
-        $this->actingAs($laboran)->patch(route('final-tasks.approve', $submission), ['status' => 'ACC'])
+        $this->actingAs($laboran)->patch(route('final-tasks.approve', $submission), ['status' => 'ACC', 'document_version' => 1])
             ->assertRedirect();
-        $this->actingAs($dosen)->patch(route('final-tasks.approve', $submission), ['status' => 'ACC'])
+        $this->actingAs($dosen)->patch(route('final-tasks.approve', $submission), ['status' => 'ACC', 'document_version' => 1])
             ->assertRedirect();
 
         $submission->refresh();
@@ -126,7 +126,7 @@ class WorkflowAuthorizationTest extends TestCase
         $submission = Submission::query()->create([
             'student_id' => $student->id,
             'final_task_id' => $finalTask->id,
-            'submission_link' => 'https://example.test/laporan/final',
+            'submission_link' => 'https://drive.google.com/file/d/report-final/view',
             'is_final' => true,
             'aslab_status' => 'ACC',
             'laboran_status' => 'ACC',
@@ -151,7 +151,7 @@ class WorkflowAuthorizationTest extends TestCase
         $submission = Submission::query()->create([
             'student_id' => $student->id,
             'meeting_id' => $meeting->id,
-            'submission_link' => 'https://example.test/laporan/1',
+            'submission_link' => 'https://drive.google.com/file/d/report-1/view',
             'is_final' => false,
         ]);
 

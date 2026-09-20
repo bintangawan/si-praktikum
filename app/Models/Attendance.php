@@ -6,6 +6,17 @@ use Illuminate\Database\Eloquent\Model;
 
 class Attendance extends Model
 {
+    public static function label(?string $status): string
+    {
+        return match (strtoupper(trim($status ?? ''))) {
+            'H', 'HADIR' => 'Hadir',
+            'S', 'SAKIT' => 'Sakit',
+            'I', 'IZIN' => 'Izin',
+            'TK', 'TANPA KETERANGAN', 'ALPA', 'ALPHA' => 'Tanpa Keterangan',
+            default => 'Belum Presensi',
+        };
+    }
+
     protected $fillable = [
         'meeting_id',
         'student_id',

@@ -48,6 +48,7 @@ class UserSeeder extends Seeder
                     ...$user,
                     'password' => Hash::make('password'),
                     'email_verified_at' => now(),
+                    'approved_at' => now(),
                     'is_first_login' => false,
                 ],
             );

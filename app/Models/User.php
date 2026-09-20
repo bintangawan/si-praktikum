@@ -20,7 +20,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     protected $keyType = 'string';
 
-    protected $fillable = ['id', 'name', 'email', 'password', 'role', 'is_first_login', 'avatar'];
+    protected $fillable = ['id', 'name', 'email', 'password', 'role', 'is_first_login', 'avatar', 'approved_at', 'approved_by'];
 
     protected $hidden = ['password', 'remember_token'];
 
@@ -28,6 +28,7 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return [
             'email_verified_at' => 'datetime',
+            'approved_at' => 'datetime',
             'password' => 'hashed',
             'is_first_login' => 'boolean',
         ];

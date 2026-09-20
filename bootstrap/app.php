@@ -1,6 +1,8 @@
 <?php
 
+use App\Http\Middleware\EnsureAccountApproved;
 use App\Http\Middleware\EnsurePasswordChanged;
+use App\Http\Middleware\ProtectArchivedCourse;
 use App\Http\Middleware\RoleCheck;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -16,6 +18,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'password.changed' => EnsurePasswordChanged::class,
             'role' => RoleCheck::class,
+            'course.archive' => ProtectArchivedCourse::class,
+            'account.approved' => EnsureAccountApproved::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

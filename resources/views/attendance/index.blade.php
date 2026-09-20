@@ -1,10 +1,11 @@
 <x-app-layout>
+    @if(!$meeting->course->semester->is_active)<p class="mb-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">Kelas arsip hanya dapat dibaca.</p>@endif
     <x-slot name="header_title">
         Presensi: {{ $meeting->title }}
     </x-slot>
 
     <div class="mb-6">
-        <a href="{{ route('courses.show', $meeting->course_id) }}" class="text-indigo-600 hover:text-indigo-800 text-sm font-semibold flex items-center transition">
+        <a href="{{ route('courses.show', $meeting->course) }}" class="text-emerald-600 hover:text-emerald-800 text-sm font-semibold flex items-center transition">
             <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
             Kembali ke Detail Kelas
         </a>
@@ -13,8 +14,8 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div class="p-6 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
             <div>
-                <h3 class="font-bold text-gray-800 text-lg uppercase">Daftar Hadir Mahasiswa</h3>
-                <p class="text-[10px] text-gray-500 uppercase tracking-widest font-black mt-1">
+                <h3 class="font-bold text-gray-800 text-lg">Daftar Hadir Mahasiswa</h3>
+                <p class="text-xs text-gray-500 tracking-normal font-semibold mt-1">
                     Pertemuan {{ $meeting->meeting_number }} &bull; Status: 
                     @if($existingAttendances->count() > 0)
                         <span class="text-emerald-600">Terisi</span>
@@ -27,10 +28,11 @@
 
         <form action="{{ route('attendance.store', $meeting->id) }}" method="POST">
             @csrf
+                    <fieldset class="contents" @disabled(!$meeting->course->semester->is_active)>
             <div class="overflow-x-auto">
-                <table class="w-full text-left border-collapse">
+                <table class="min-w-[680px] w-full text-left border-collapse">
                     <thead>
-                        <tr class="bg-gray-50 text-[10px] uppercase tracking-widest text-gray-400 font-black border-b border-gray-100">
+                        <tr class="bg-gray-50 text-xs tracking-normal text-gray-400 font-semibold border-b border-gray-100">
                             <th class="px-6 py-4">Mahasiswa</th>
                             <th class="px-6 py-4 text-center">Hadir</th>
                             <th class="px-6 py-4 text-center">Sakit</th>
@@ -48,7 +50,7 @@
                             <td class="px-6 py-4">
                                 <div class="flex flex-col">
                                     <span class="font-bold text-gray-800 text-sm">{{ $student->name }}</span>
-                                    <span class="text-[11px] text-gray-400 font-mono">{{ $student->id }}</span>
+                                    <span class="text-xs text-gray-400">{{ $student->id }}</span>
                                 </div>
                             </td>
                             
@@ -83,12 +85,12 @@
                     </button>
                 @else
                     {{-- Tombol Simpan jika data baru --}}
-                    <button type="submit" class="bg-indigo-600 text-white px-8 py-2.5 rounded-lg font-bold text-sm hover:bg-indigo-700 transition shadow-lg flex items-center">
+                    <button type="submit" class="bg-emerald-600 text-white px-8 py-2.5 rounded-lg font-bold text-sm hover:bg-emerald-700 transition shadow-lg flex items-center">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                         Simpan Presensi
                     </button>
                 @endif
             </div>
-        </form>
+        </fieldset></form>
     </div>
 </x-app-layout>

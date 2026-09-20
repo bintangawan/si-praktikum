@@ -46,7 +46,7 @@ class AdministrativeWorkflowTest extends TestCase
             'meeting_number' => 1,
             'title' => 'Pengenalan',
             'description' => 'Materi awal',
-            'module_drive_link' => 'https://drive.google.com/example',
+            'module_drive_link' => 'https://drive.google.com/file/d/module-example/view',
             'deadline' => now()->addDay()->format('Y-m-d H:i:s'),
         ])->assertRedirect()->assertSessionHas('success');
 
@@ -54,16 +54,16 @@ class AdministrativeWorkflowTest extends TestCase
         $this->actingAs($dosen)->put(route('meetings.update', $meeting), [
             'title' => 'Pengenalan Sistem',
             'description' => 'Materi diperbarui',
-            'module_drive_link' => 'https://drive.google.com/updated',
+            'module_drive_link' => 'https://drive.google.com/file/d/module-updated/view',
         ])->assertRedirect()->assertSessionHas('success');
         $this->assertDatabaseHas('meetings', ['id' => $meeting->id, 'title' => 'Pengenalan Sistem']);
 
-        $this->actingAs($laboran)->post(route('final-tasks.store', $course), [
+        $finalTask = FinalTask::query()->create([
+            'course_id' => $course->id,
             'description' => 'Buat laporan final.',
-            'deadline' => now()->addWeek()->format('Y-m-d H:i:s'),
-        ])->assertRedirect()->assertSessionHas('success');
+            'deadline' => now()->addWeek(),
+        ]);
 
-        $finalTask = FinalTask::query()->sole();
         $this->actingAs($aslab)->put(route('final-tasks.update-description', $finalTask), [
             'description' => 'Buat laporan final yang telah direvisi.',
         ])->assertRedirect()->assertSessionHas('success');

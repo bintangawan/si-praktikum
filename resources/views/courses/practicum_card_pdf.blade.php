@@ -8,7 +8,7 @@
             margin: 1cm 1.5cm;
         }
         body {
-            font-family: 'Times New Roman', Times, serif;
+            font-family: 'Poppins', 'DejaVu Sans', sans-serif;
             font-size: 11pt;
             line-height: 1.25;
             color: #000;

@@ -27,7 +27,7 @@ class TutorialController extends Controller
             $query->where('type', $request->type);
         }
 
-        $tutorials = $query->latest()->get();
+        $tutorials = $query->latest()->paginate(12)->withQueryString();
 
         return view('tutorials.index', compact('tutorials'));
     }

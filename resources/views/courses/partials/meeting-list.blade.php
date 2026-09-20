@@ -1,143 +1,74 @@
-<div class="lg:col-span-2">
-    <div class="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
-        <div class="p-8 border-b border-gray-50 flex justify-between items-center bg-gray-50/30">
-            <h3 class="font-black text-gray-800 text-[10px] uppercase tracking-[0.2em]">Daftar Tugas & Pertemuan</h3>
+<section>
+    <div class="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div>
+            <h2 class="text-lg font-semibold text-slate-900">Modul praktikum</h2>
+            <p class="mt-1 text-sm text-slate-500">Setiap kartu memiliki materi dan tempat upload laprak tersendiri.</p>
         </div>
-
-        <div class="divide-y divide-gray-50">
-            @forelse($course->meetings->sortBy('meeting_number') as $meeting)
-                @php 
-                    $sub = $meeting->submissions->where('student_id', auth()->id())->first(); 
-                @endphp
-                
-                <div class="p-8 hover:bg-gray-50/50 transition group">
-                    <div class="flex flex-col md:flex-row justify-between gap-6">
-                        <div class="flex-1">
-                            <div class="flex items-center gap-3 mb-3">
-                                <span class="px-3 py-1 bg-slate-800 text-white text-[9px] font-black rounded-lg uppercase tracking-[0.1em]">
-                                    P{{ $meeting->meeting_number }}
-                                </span>
-                                
-                                @if(strtoupper(auth()->user()->role) === 'MAHASISWA')
-                                    @php 
-                                        $attendance = $meeting->attendances->where('student_id', auth()->id())->first(); 
-                                        $anyAbsen = $meeting->attendances_count > 0;
-                                        
-                                        if ($attendance) {
-                                            $attStatus = strtoupper($attendance->status);
-                                            $attConfig = match($attStatus) {
-                                                'HADIR'          => ['color' => 'text-emerald-500', 'label' => '● Hadir'],
-                                                'IZIN', 'SAKIT'  => ['color' => 'text-amber-500', 'label' => '● ' . ucfirst(strtolower($attStatus))],
-                                                'ALPA', 'ALPHA'  => ['color' => 'text-red-500', 'label' => '● Alpa'],
-                                                default          => ['color' => 'text-gray-300', 'label' => '○ Belum Presensi'],
-                                            };
-                                        } else {
-                                            if ($anyAbsen) {
-                                                $attConfig = ['color' => 'text-red-500', 'label' => '● Alpa'];
-                                            } else {
-                                                $attConfig = ['color' => 'text-gray-300', 'label' => '○ Belum Presensi'];
-                                            }
-                                        }
-                                    @endphp
-                                    <span class="text-[9px] font-black uppercase tracking-widest {{ $attConfig['color'] }}">
-                                        {{ $attConfig['label'] }}
-                                    </span>
-                                @endif
-                            </div>
-                            
-                            <h4 class="font-black text-gray-800 text-xl leading-tight group-hover:text-indigo-600 transition">{{ $meeting->title }}</h4>
-                            
-                            {{-- TAMPILAN DEADLINE DITAMBAHKAN DI SINI --}}
-                            @if($meeting->deadline)
-                                <div class="mt-2 flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest {{ now()->gt(\Carbon\Carbon::parse($meeting->deadline)) ? 'text-red-500' : 'text-gray-400' }}">
-                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                    Batas Waktu: {{ \Carbon\Carbon::parse($meeting->deadline)->format('d M Y - H:i') }} WIB
-                                </div>
-                            @endif
-                            
-                            @if(strtoupper(auth()->user()->role) === 'MAHASISWA')
-                                @php 
-                                    $isPastDeadline = $meeting->deadline && now()->gt(\Carbon\Carbon::parse($meeting->deadline));
-                                    $isCompleted = $sub && strtoupper($sub->aslab_status) == 'ACC' && strtoupper($sub->laboran_status) == 'ACC';
-                                @endphp
-                                
-                                <div class="mt-5 space-y-2.5">
-                                    @if($sub)
-                                        <div class="flex items-center gap-3 text-[9px] font-black uppercase tracking-tighter">
-                                            <span class="text-gray-400 w-24 text-[8px]">Status Aslab:</span>
-                                            <span class="px-2 py-0.5 rounded-md {{ $sub->aslab_status == 'ACC' ? 'bg-emerald-50 text-emerald-600' : ($sub->aslab_status == 'REVISI' ? 'bg-red-50 text-red-600 animate-pulse' : 'bg-amber-50 text-amber-600') }}">
-                                                {{ $sub->aslab_status }}
-                                            </span>
-                                            @if($sub->aslab_status == 'ACC' && $sub->aslab_acc_at)
-                                                <span class="text-gray-400 text-[8px] border-l border-gray-200 pl-3">{{ \Carbon\Carbon::parse($sub->aslab_acc_at)->format('d M Y') }}</span>
-                                            @endif
-                                        </div>
-                                        <div class="flex items-center gap-3 text-[9px] font-black uppercase tracking-tighter">
-                                            <span class="text-gray-400 w-24 text-[8px]">Status Laboran:</span>
-                                            <span class="px-2 py-0.5 rounded-md {{ $sub->laboran_status == 'ACC' ? 'bg-emerald-50 text-emerald-600' : ($sub->laboran_status == 'REVISI' ? 'bg-red-50 text-red-600 animate-pulse' : 'bg-amber-50 text-amber-600') }}">
-                                                {{ $sub->laboran_status }}
-                                            </span>
-                                            @if($sub->laboran_status == 'ACC' && $sub->laboran_acc_at)
-                                                <span class="text-gray-400 text-[8px] border-l border-gray-200 pl-3">{{ \Carbon\Carbon::parse($sub->laboran_acc_at)->format('d M Y') }}</span>
-                                            @endif
-                                        </div>
-
-                                        @if($isPastDeadline && !$isCompleted)
-                                            <div class="mt-2 inline-flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 text-[9px] font-black rounded-lg uppercase tracking-widest border border-red-100">
-                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                                                Lewat Deadline & Belum ACC Sepenuhnya
-                                            </div>
-                                        @endif
-                                    @else
-                                        @if($isPastDeadline)
-                                            <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-red-50 text-red-600 text-[9px] font-black rounded-lg uppercase tracking-widest border border-red-100">
-                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                                Waktu Habis (Belum Mengumpulkan)
-                                            </div>
-                                        @else
-                                            <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-50 text-amber-600 text-[9px] font-black rounded-lg uppercase tracking-widest border border-amber-100">
-                                                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                                                Belum Mengumpulkan Tugas
-                                            </div>
-                                        @endif
-                                    @endif
-                                </div>
-                            @endif
-                        </div>
-
-                        <div class="flex flex-wrap items-center gap-3">
-                            @if(in_array(strtoupper(auth()->user()->role), ['DOSEN', 'ASLAB', 'LABORAN']))
-                                <a href="{{ route('attendance.index', $meeting->id) }}" class="px-5 py-3 bg-amber-50 text-amber-700 rounded-2xl text-[10px] font-black uppercase tracking-widest border border-amber-100 hover:bg-amber-100 transition shadow-sm text-center min-w-[100px]">
-                                    Presensi
-                                </a>
-                                <a href="{{ route('submissions.index', $meeting->id) }}" class="px-5 py-3 bg-slate-800 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-900 transition flex items-center shadow-lg shadow-slate-200">
-                                    Tugas ({{ $meeting->submissions->count() }})
-                                </a>
-                            @endif
-
-                            @if(strtoupper(auth()->user()->role) === 'MAHASISWA')
-                                <a href="{{ route('mahasiswa.submissions.manage', $meeting->id) }}" 
-                                   class="px-5 py-3 {{ $sub ? ($sub->aslab_status == 'REVISI' ? 'bg-red-600 hover:bg-red-700' : 'bg-emerald-600 hover:bg-emerald-700') : 'bg-indigo-600 hover:bg-indigo-700' }} text-white rounded-2xl text-[10px] font-black uppercase tracking-widest shadow-xl transition active:scale-95 text-center min-w-[120px]">
-                                    {{ $sub ? 'Kelola Tugas' : 'Kumpul Tugas' }}
-                                </a>
-                            @endif
-                            
-                            @if($meeting->module_drive_link)
-                                <a href="{{ $meeting->module_drive_link }}" target="_blank" class="p-3 bg-gray-50 text-gray-400 rounded-2xl border border-gray-100 hover:text-indigo-600 hover:bg-white transition" title="Download Modul">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                                </a>
-                            @endif
-                        </div>
-                    </div>
-                </div>
-            @empty
-                <div class="p-24 text-center">
-                    <div class="inline-flex p-6 bg-slate-50 rounded-[2rem] text-slate-300 mb-4">
-                        <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-                    </div>
-                    <p class="text-gray-400 font-black text-[10px] uppercase tracking-[0.2em]">Belum Ada Data Pertemuan</p>
-                </div>
-            @endforelse
-        </div>
+        <span class="rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-800">{{ $course->meetings->count() }} modul</span>
     </div>
-</div>
+
+    <div class="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+        @forelse($course->meetings->sortBy('meeting_number') as $meeting)
+            @php
+                $student = auth()->user()->hasRole('Mahasiswa');
+                $submission = $student ? $meeting->submissions->firstWhere('student_id', auth()->id()) : null;
+                $attendance = $student ? $meeting->attendances->first() : null;
+                $status = $submission?->studentStatus();
+                $canResubmit = $submission?->canResubmit() ?? false;
+                $pastDeadline = $meeting->deadline && now()->gt($meeting->deadline);
+                $statusClass = match($status) {
+                    'Diterima' => 'bg-emerald-50 text-emerald-800 border-emerald-100',
+                    'Revisi' => 'bg-amber-50 text-amber-800 border-amber-100',
+                    'Ditolak' => 'bg-red-50 text-red-700 border-red-100',
+                    default => 'bg-amber-50 text-amber-700 border-amber-100',
+                };
+            @endphp
+
+            <article class="flex flex-col rounded-2xl border border-slate-200 bg-white p-6 shadow-sm" data-module="{{ $meeting->meeting_number }}">
+                <div class="mb-3 flex items-start justify-between gap-3">
+                    <span class="text-sm font-semibold text-emerald-700">Modul {{ $meeting->meeting_number }}</span>
+                    @if($student)
+                        <span class="rounded-full border px-2.5 py-1 text-xs font-semibold {{ $submission ? $statusClass : 'border-slate-200 bg-slate-50 text-slate-600' }}">
+                            {{ $submission ? $status : 'Belum mengumpulkan' }}
+                        </span>
+                    @endif
+                </div>
+
+                <h3 class="text-lg font-semibold text-slate-900">{{ $meeting->title }}</h3>
+                <p class="mt-3 line-clamp-3 text-sm leading-6 text-slate-500">{{ $meeting->description ?: 'Buka modul untuk melihat materi dan mengirim laprak.' }}</p>
+                <p class="mt-4 text-xs text-slate-500">Batas waktu: {{ $meeting->deadline ? $meeting->deadline->format('d M Y H:i').' WIB' : 'Tidak dibatasi' }}</p>
+
+                @if($student)
+                    <p class="mt-3 text-xs text-slate-600">Presensi: {{ $attendance ? \App\Models\Attendance::label($attendance->status) : ($meeting->attendances_count ? 'Tanpa Keterangan' : 'Belum Presensi') }}</p>
+                    <div class="mt-4 rounded-xl border p-3 text-sm {{ $submission ? $statusClass : ($pastDeadline ? 'border-red-100 bg-red-50 text-red-700' : 'border-slate-200 bg-slate-50 text-slate-600') }}">
+                        @if($submission)
+                            <p class="font-semibold">{{ $status }}</p>
+                            <p class="mt-1 text-xs">Aslab: {{ $submission->aslab_status }} · Laboran: {{ $submission->laboran_status }}</p>
+                            @if($canResubmit)
+                                <p class="mt-2 text-xs">Catatan: {{ $submission->histories->first(fn ($history) => $history->feedback)?->feedback ?: 'Buka tugas untuk melihat detail pemeriksaan.' }}</p>
+                            @endif
+                        @else
+                            <p>{{ $pastDeadline ? 'Belum mengumpulkan — waktu habis' : 'Laprak belum diunggah.' }}</p>
+                        @endif
+                    </div>
+                @endif
+
+                <div class="mt-auto flex flex-wrap gap-3 pt-5">
+                    @if($student)
+                        <a href="{{ route('mahasiswa.submissions.manage', $meeting) }}" class="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white">
+                            {{ !$course->semester->is_active || $submission?->is_completed ? 'Lihat laporan' : ($canResubmit ? 'Upload perbaikan' : ($submission ? 'Lihat status' : 'Upload laprak')) }}
+                        </a>
+                    @else
+                        <a href="{{ route('submissions.index', $meeting) }}" class="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white">Laporan ({{ $meeting->submissions_count }})</a>
+                        <a href="{{ route('attendance.index', $meeting) }}" class="rounded-xl bg-slate-50 px-4 py-2.5 text-sm text-slate-700">Presensi</a>
+                    @endif
+                    @if($meeting->module_drive_link)
+                        <a href="{{ \App\Services\DriveLink::preview($meeting->module_drive_link) ?? $meeting->module_drive_link }}" target="_blank" rel="noopener noreferrer" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-emerald-800">Lihat materi</a>
+                    @endif
+                </div>
+            </article>
+        @empty
+            <p class="col-span-full rounded-2xl border border-dashed border-slate-200 p-10 text-center text-sm text-slate-500">Belum ada modul. Pengelola kelas perlu menambahkan modul sebelum mahasiswa dapat mengumpulkan laprak.</p>
+        @endforelse
+    </div>
+</section>

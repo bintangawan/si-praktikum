@@ -1,4 +1,5 @@
 import defaultTheme from 'tailwindcss/defaultTheme';
+import colors from 'tailwindcss/colors';
 import forms from '@tailwindcss/forms';
 
 /** @type {import('tailwindcss').Config} */
@@ -11,6 +12,9 @@ export default {
 
     theme: {
         extend: {
+            colors: {
+                gray: colors.slate,
+            },
             fontFamily: {
                 sans: ['Poppins', ...defaultTheme.fontFamily.sans],
             },
