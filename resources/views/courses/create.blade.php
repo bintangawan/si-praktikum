@@ -12,10 +12,10 @@
             </div>
         @endif
 
-        @if($dosens->isEmpty() || $aslabs->isEmpty())
+        @if($laborans->isEmpty() || $dosens->isEmpty() || $aslabs->isEmpty())
             <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800" role="alert">
                 <p class="font-semibold">Data pengajar belum lengkap.</p>
-                <p class="mt-1 text-sm">@if($dosens->isEmpty()) Belum ada akun Dosen yang aktif. @endif @if($aslabs->isEmpty()) Belum ada akun Asisten Laboratorium yang aktif. @endif</p>
+                <p class="mt-1 text-sm">@if($laborans->isEmpty()) Belum ada akun Laboran yang aktif. @endif @if($dosens->isEmpty()) Belum ada akun Dosen yang aktif. @endif @if($aslabs->isEmpty()) Belum ada akun Asisten Laboratorium yang aktif. @endif</p>
             </div>
         @endif
 
@@ -25,7 +25,7 @@
                     <div class="mb-6">
                         <p class="text-sm font-semibold text-emerald-700">Langkah 1</p>
                         <h2 class="mt-1 text-xl font-semibold text-slate-900">Informasi kelas</h2>
-                        <p class="mt-2 text-sm leading-6 text-slate-500">Laboran menentukan struktur kelas. Aslab yang dipilih akan melengkapi materi setiap modul setelah kelas dibuat.</p>
+                        <p class="mt-2 text-sm leading-6 text-slate-500">Pilih petugas yang bertanggung jawab pada kelas. Aslab yang ditunjuk dapat mengatur modul setelah kelas dibuat.</p>
                     </div>
 
                     <div class="grid gap-5 md:grid-cols-2">
@@ -37,6 +37,12 @@
                         </label>
                         <label class="text-sm font-semibold text-slate-700">Semester mahasiswa
                             <input type="number" name="target_semester" value="{{ old('target_semester') }}" min="1" max="14" required class="mt-2 block w-full rounded-xl border-slate-200 bg-slate-50/70" placeholder="Contoh: 5">
+                        </label>
+                        <label class="text-sm font-semibold text-slate-700">Laboran penanggung jawab
+                            <select name="laboran_id" required class="mt-2 block w-full rounded-xl border-slate-200 bg-slate-50/70">
+                                <option value="">Pilih laboran</option>
+                                @foreach($laborans as $laboran)<option value="{{ $laboran->id }}" @selected((string) old('laboran_id', auth()->id()) === (string) $laboran->id)>{{ $laboran->name }} â€” {{ $laboran->id }}</option>@endforeach
+                            </select>
                         </label>
                         <label class="text-sm font-semibold text-slate-700">Dosen pengampu
                             <select name="dosen_id" required class="mt-2 block w-full rounded-xl border-slate-200 bg-slate-50/70">
@@ -77,7 +83,7 @@
                     <div><p class="text-sm font-semibold text-emerald-700">Preview struktur</p><h2 class="mt-1 text-xl font-semibold text-slate-900"><span x-text="moduleCount"></span> modul praktikum</h2></div>
                     <span class="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800">Maks. 16</span>
                 </div>
-                <p class="mt-3 text-sm leading-6 text-slate-500">Kartu ini langsung tersedia setelah kelas dibuat. Aslab dapat mengaktifkannya satu per satu dengan mengisi materi.</p>
+                <p class="mt-3 text-sm leading-6 text-slate-500">Kartu ini langsung dibuat sebagai Coming Soon. Laboran atau Aslab dapat membuka pengumpulan tanpa harus mengisi materi terlebih dahulu.</p>
 
                 <div class="custom-scrollbar mt-6 grid max-h-[34rem] gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
                     <template x-for="number in moduleCount" :key="number">
@@ -92,7 +98,7 @@
 
         <div class="flex flex-col-reverse justify-end gap-3 sm:flex-row">
             <a href="{{ route('courses.index') }}" class="rounded-xl px-5 py-3 text-center text-sm font-semibold text-slate-600">Batal</a>
-            <button type="submit" :disabled="submitting || {{ $dosens->isEmpty() || $aslabs->isEmpty() ? 'true' : 'false' }}" class="rounded-xl bg-emerald-700 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"><span x-text="submitting ? 'Membuat kelas...' : `Buat kelas dengan ${moduleCount} modul`"></span></button>
+            <button type="submit" :disabled="submitting || {{ $laborans->isEmpty() || $dosens->isEmpty() || $aslabs->isEmpty() ? 'true' : 'false' }}" class="rounded-xl bg-emerald-700 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"><span x-text="submitting ? 'Membuat kelas...' : `Buat kelas dengan ${moduleCount} modul`"></span></button>
         </div>
     </form>
 </x-app-layout>

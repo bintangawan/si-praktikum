@@ -79,6 +79,7 @@ class QaWorkflowTest extends TestCase
             'course_name' => 'Basis Data',
             'class_group' => 'B',
             'target_semester' => 2,
+            'laboran_id' => $laboran->id,
             'dosen_id' => $dosen->id,
             'aslab_id' => $aslab->id,
         ];

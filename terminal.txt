@@ -1,0 +1,113 @@
+cd /var/www/laprakapps
+
+unset DOSEN_PASSWORD
+while [ -z "${DOSEN_PASSWORD:-}" ]; do
+    read -rsp "Masukkan password awal seluruh dosen: " DOSEN_PASSWORD
+    echo
+done
+
+export DOSEN_PASSWORD
+
+php artisan tinker --execute='
+$dosen = [
+    ["AHH", "Abdul Halim Hasugian, M.Kom"],
+    ["ATF", "Ahmad Taufik Al Afkari Siahaan, M.Kom"],
+    ["AHL", "Aidil Halim Lubis, M.Kom"],
+    ["ASE", "Akbar Serdano, M.Kom"],
+    ["AMZ", "Ameilia Zuliyanti Siregar, M.Sc, Ph.D"],
+    ["ARM", "Armansyah, M.Kom"],
+    ["CHA", "Chairul Azhar, M.Si"],
+    ["DLH", "Dila Handayani, S.Pd.I, M.Hum"],
+    ["AMR", "Dr. Amiruddin, M.Pd"],
+    ["HEN", "Dr. Hendra Kurniawan, M.Pd.I"],
+    ["MFA", "Dr. M. Fakhriza, M.Kom"],
+    ["MFQ", "Dr. Mhd. Furqan, S.Si., M.Comp. Sc"],
+    ["MQB", "Dr. Muhammad Iqbal, M.Kom"],
+    ["NIL", "Dr. Nurul Ilmi, S.Ag., MH."],
+    ["SKP", "Dr. Surya Kelana Putra, S.Pd.I., M.Hum."],
+    ["KNS", "Drs. Kasron Nasution, M.Ag"],
+    ["MHL", "Drs. Muhammad Halomoan, M.Pd"],
+    ["STM", "Drs. Sair Tumanggor, M.Si"],
+    ["FIP", "Fika Indah Perawansa, M.Pd"],
+    ["IBR", "Ibnu Rusydi, M.Kom"],
+    ["IZF", "Ilka Zufria, M.Kom."],
+    ["JUL", "Juliarseh, M.Pd"],
+    ["JUN", "Junaida, M.Pd"],
+    ["LSH", "Lailan Sofinah Harahap, M.Kom"],
+    ["LHL", "Lailatul Husna Lubis, M.Sc"],
+    ["ORI", "M. Alqusyairi Munir, M.Kom"],
+    ["KGB", "M. Khalil Gibran, M.Kom"],
+    ["MHU", "Miftahul Husna, M.Si"],
+    ["MIR", "Muhammad Ikhsan Rifki, S.Tr.T., M.T"],
+    ["IKH", "Muhammad Ikhsan, ST., M.Kom"],
+    ["MSH", "Muhammad Siddik Hasibuan, M.Kom"],
+    ["MDT", "Myrna Dwi Tantia, S.Akun, M.E"],
+    ["NBY", "Nabila Yasmin, M.Phil"],
+    ["PSR", "Puji Sari Ramadhan, M.Kom"],
+    ["MAI", "R. Maisaroh Rezyekiyah Siregar, M.Pd"],
+    ["RWS", "Rahmad Widia Sembiring, Ph.D"],
+    ["RAP", "Raissa Amanda Putri, M.Ti."],
+    ["RKR", "Rakhmat Kurniawan R, ST., M.Kom"],
+    ["RAT", "Ratni Sirait, M.Pd"],
+    ["RAD", "Reza Ade Putra, M.Cs"],
+    ["RNS", "Rita Novita Sari, M.Kom"],
+    ["SKH", "Siska Hasibuan, MM"],
+    ["SRN", "Sriani, M.Kom"],
+    ["SHD", "Suhardi, M.Kom"],
+    ["SDW", "Sulindawaty, M.Kom"],
+    ["YRN", "Yusuf Ramadhan Nasution, M.Kom"],
+];
+
+$hashedPassword = \Illuminate\Support\Facades\Hash::make(
+    getenv("DOSEN_PASSWORD")
+);
+
+\Illuminate\Support\Facades\DB::transaction(
+    function () use ($dosen, $hashedPassword) {
+        foreach ($dosen as [$code, $name]) {
+            $user = \App\Models\User::query()->firstOrNew([
+                "id" => "DOSEN-".$code,
+            ]);
+
+            $isNew = ! $user->exists;
+
+            $user->name = $name;
+            $user->email = "dosen.".strtolower($code)."@si-praktikum.local";
+            $user->role = \App\Enums\UserRole::DOSEN->value;
+
+            if (! $user->email_verified_at) {
+                $user->email_verified_at = now();
+            }
+
+            if (! $user->approved_at) {
+                $user->approved_at = now();
+            }
+
+            if ($isNew) {
+                $user->password = $hashedPassword;
+                $user->is_first_login = true;
+            }
+
+            $user->save();
+        }
+    }
+);
+
+echo count($dosen)." akun dosen berhasil disimpan.".PHP_EOL;
+'
+
+unset DOSEN_PASSWORD
+
+php artisan tinker --execute='
+echo "Total Dosen: ".\App\Models\User::query()
+    ->where("role", "Dosen")
+    ->count().PHP_EOL;
+
+\App\Models\User::query()
+    ->where("role", "Dosen")
+    ->orderBy("name")
+    ->get(["id", "name", "email"])
+    ->each(function ($user) {
+        echo $user->id." | ".$user->name." | ".$user->email.PHP_EOL;
+    });
+'

@@ -52,6 +52,7 @@ class CourseController extends Controller
     public function create(): View
     {
         return view('courses.create', [
+            'laborans' => User::query()->where('role', UserRole::LABORAN->value)->whereNotNull('approved_at')->orderBy('name')->get(['id', 'name']),
             'dosens' => User::query()->where('role', UserRole::DOSEN->value)->whereNotNull('approved_at')->orderBy('name')->get(['id', 'name']),
             'aslabs' => User::query()->where('role', UserRole::ASLAB->value)->whereNotNull('approved_at')->orderBy('name')->get(['id', 'name']),
         ]);
@@ -74,6 +75,7 @@ class CourseController extends Controller
             'course_name' => ['required', 'string', 'max:255'],
             'class_group' => ['required', 'string', 'max:50'],
             'target_semester' => ['required', 'integer', 'min:1', 'max:14'],
+            'laboran_id' => ['required', Rule::exists('users', 'id')->where('role', UserRole::LABORAN->value)->whereNotNull('approved_at')],
             'dosen_id' => ['required', Rule::exists('users', 'id')->where('role', UserRole::DOSEN->value)->whereNotNull('approved_at')],
             'aslab_id' => ['required', Rule::exists('users', 'id')->where('role', UserRole::ASLAB->value)->whereNotNull('approved_at')],
             'module_count' => ['required', 'integer', 'min:1', 'max:16'],
@@ -92,11 +94,10 @@ class CourseController extends Controller
         $moduleCount = (int) $validated['module_count'];
         unset($validated['module_count']);
 
-        $course = DB::transaction(function () use ($validated, $moduleCount, $activeSemester, $request): Course {
+        $course = DB::transaction(function () use ($validated, $moduleCount, $activeSemester): Course {
             $course = Course::query()->create([
                 ...$validated,
                 'semester_id' => $activeSemester->id,
-                'laboran_id' => $request->user()->id,
                 'enrollment_code' => $this->uniqueEnrollmentCode(),
             ]);
 

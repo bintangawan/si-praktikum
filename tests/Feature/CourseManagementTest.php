@@ -18,11 +18,13 @@ class CourseManagementTest extends TestCase
     public function test_laboran_can_create_a_course_and_immediately_see_it_in_their_course_list(): void
     {
         [$laboran, $dosen, $aslab, $semester] = $this->staffFixture();
+        $assignedLaboran = User::factory()->create(['role' => 'Laboran']);
 
         $response = $this->actingAs($laboran)->post(route('courses.store'), [
             'course_name' => '  Pemrograman   Web  ',
             'class_group' => ' ti-3a ',
             'target_semester' => 3,
+            'laboran_id' => $assignedLaboran->id,
             'dosen_id' => $dosen->id,
             'aslab_id' => $aslab->id,
             'module_count' => 2,
@@ -35,7 +37,7 @@ class CourseManagementTest extends TestCase
         $this->assertSame('Pemrograman Web', $course->course_name);
         $this->assertSame('TI-3A', $course->class_group);
         $this->assertSame($semester->id, $course->semester_id);
-        $this->assertSame($laboran->id, $course->laboran_id);
+        $this->assertSame($assignedLaboran->id, $course->laboran_id);
         $this->assertSame('pemrograman-web-ti-3a', $course->slug);
         $this->assertNotEmpty($course->enrollment_code);
         $this->assertSame(2, $course->meetings()->count());
@@ -49,7 +51,7 @@ class CourseManagementTest extends TestCase
         $this->assertStringContainsString('/courses/pemrograman-web-ti-3a', route('courses.show', $course));
         $this->actingAs($laboran)->get("/courses/{$course->id}/students")->assertNotFound();
 
-        $this->actingAs($laboran)->get(route('courses.index'))
+        $this->actingAs($assignedLaboran)->get(route('courses.index'))
             ->assertOk()
             ->assertSee('Pemrograman Web')
             ->assertSee('TI-3A')
@@ -66,9 +68,11 @@ class CourseManagementTest extends TestCase
             'course_name' => 'Basis Data',
             'class_group' => 'A',
             'target_semester' => 3,
+            'laboran_id' => $student->id,
             'dosen_id' => $student->id,
             'aslab_id' => $aslab->id,
-        ])->assertRedirect(route('courses.create'))->assertSessionHasErrors('dosen_id');
+            'module_count' => 8,
+        ])->assertRedirect(route('courses.create'))->assertSessionHasErrors(['laboran_id', 'dosen_id']);
 
         $this->assertDatabaseCount('courses', 0);
 
@@ -76,6 +80,7 @@ class CourseManagementTest extends TestCase
             'course_name' => 'Basis Data',
             'class_group' => 'A',
             'target_semester' => 3,
+            'laboran_id' => $laboran->id,
             'dosen_id' => $dosen->id,
             'aslab_id' => $aslab->id,
         ])->assertForbidden();
