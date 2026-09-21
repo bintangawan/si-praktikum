@@ -183,42 +183,12 @@
                         </div>
                     @endif
 
-                    @if(session('success'))
-                        <div x-data="{ show: true }"
-                            x-show="show"
-                            x-init="setTimeout(() => show = false, 5000)" {{-- Pesan hilang otomatis setelah 5 detik --}}
-                            class="mb-6 p-4 bg-emerald-50 border-l-4 border-emerald-500 text-emerald-700 text-sm font-bold rounded shadow-lg flex items-center justify-between animate-fade-in">
-                            <div class="flex items-center">
-                                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>
-                                <span>{{ session('success') }}</span>
-                            </div>
-                            <button @click="show = false" class="text-emerald-400 hover:text-emerald-600">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                            </button>
-                        </div>
-                    @endif
-
-                    @if(session('info'))
-                        <div x-data="{ show: true }" x-show="show" class="mb-6 flex items-center justify-between rounded border-l-4 border-amber-500 bg-amber-50 p-4 text-sm font-bold text-amber-800 shadow-lg">
-                            <span>{{ session('info') }}</span>
-                            <button type="button" @click="show = false" class="text-amber-600 hover:text-amber-800" aria-label="Tutup pemberitahuan">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                            </button>
-                        </div>
-                    @endif
-
-                    @if(session('error'))
-                        <div x-data="{ show: true }"
-                            x-show="show"
-                            class="mb-6 p-4 bg-red-50 border-l-4 border-red-500 text-red-700 text-sm font-bold rounded shadow-lg flex items-center justify-between">
-                            <div class="flex items-center">
-                                <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path></svg>
-                                <span>{{ session('error') }}</span>
-                            </div>
-                            <button @click="show = false" class="text-red-400 hover:text-red-600">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                            </button>
-                        </div>
+                    @php
+                        $flashType = session('error') ? 'error' : (session('success') ? 'success' : (session('info') ? 'info' : null));
+                        $flashMessage = session('error') ?? session('success') ?? session('info');
+                    @endphp
+                    @if($flashMessage)
+                        <div id="app-flash-message" hidden data-type="{{ $flashType }}" data-message="{{ $flashMessage }}"></div>
                     @endif
                     @if(isset($course) && !$course->semester->is_active)<p class="mb-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">Kelas arsip hanya dapat dibaca.</p>@endif
                     {{ $slot }}

@@ -17,8 +17,6 @@
         @include('courses.partials.meeting-list')
     </div>
 
-    {{-- Modal & Script --}}
-    @include('courses.partials.modals')
 </x-app-layout>
 
 {{-- script lainnya yang berisi kode dari halaman ini berada pada folder partials --}}

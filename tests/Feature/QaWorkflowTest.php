@@ -33,26 +33,33 @@ class QaWorkflowTest extends TestCase
     {
         [$course, $laboran] = $this->fixture();
         $response = $this->actingAs($laboran)->get(route('courses.show', $course))->assertOk();
-        foreach (['meetings.store', 'attendance.report'] as $route) {
-            $response->assertSee(route($route, $course), false);
-        }
+        $response->assertSee(route('courses.modules.edit', $course), false);
+        $response->assertSee(route('attendance.report', $course), false);
         $response->assertDontSee('Buat Laprak Final');
         $this->assertFalse(Route::has('final-tasks.store'));
-        preg_match('~<form action="([^"]+/meetings)"~', $response->getContent(), $match);
-        $this->assertNotEmpty($match);
-        $this->post(html_entity_decode($match[1]), ['meeting_number' => 1, 'title' => 'Modul 1', 'module_drive_link' => 'https://drive.google.com/file/d/material/view'])->assertSessionHasNoErrors()->assertRedirect();
+        $this->assertFalse(Route::has('meetings.store'));
         $this->get(route('attendance.report', $course))->assertOk()->assertSee(route('attendance.report.pdf', $course), false)->assertSee(route('attendance.report.excel', $course), false);
     }
 
     public function test_eight_modules_are_atomic_and_have_independent_student_submissions(): void
     {
         [$course, $laboran, $aslab, $dosen, $student] = $this->fixture();
-        $modules = collect(range(1, 8))->map(fn ($n) => ['meeting_number' => $n, 'title' => 'Modul '.$n, 'module_drive_link' => "https://drive.google.com/file/d/material-{$n}/view", 'deadline' => now()->addDay()->toDateTimeString()])->all();
+        $course->meetings()->createMany(collect(range(1, 8))->map(fn ($number) => [
+            'meeting_number' => $number,
+            'title' => 'Modul '.$number,
+        ])->all());
+        $modules = $course->meetings()->get()->map(fn ($meeting) => [
+            'id' => $meeting->id,
+            'title' => 'Materi '.$meeting->meeting_number,
+            'module_drive_link' => "https://drive.google.com/file/d/material-{$meeting->meeting_number}/view",
+            'deadline' => now()->addDay()->toDateTimeString(),
+            'is_published' => 1,
+        ])->all();
         $invalid = $modules;
         $invalid[7]['module_drive_link'] = 'https://example.test/not-drive';
-        $this->actingAs($laboran)->post(route('courses.modules.store', $course), ['modules' => $invalid])->assertSessionHasErrors('modules.7.module_drive_link');
-        $this->assertDatabaseCount('meetings', 0);
-        $this->post(route('courses.modules.store', $course), ['modules' => $modules])->assertRedirect(route('courses.show', $course));
+        $this->actingAs($aslab)->put(route('courses.modules.update', $course), ['modules' => $invalid])->assertSessionHasErrors('modules.7.module_drive_link');
+        $this->assertSame(0, $course->meetings()->whereNotNull('published_at')->count());
+        $this->put(route('courses.modules.update', $course), ['modules' => $modules])->assertRedirect(route('courses.show', $course));
         $this->assertDatabaseCount('meetings', 8);
         $page = $this->actingAs($student)->get(route('courses.show', $course))->assertOk();
         for ($i = 1; $i <= 8; $i++) {
@@ -65,7 +72,7 @@ class QaWorkflowTest extends TestCase
         $this->get(route('submissions.my-index'))->assertSee(route('mahasiswa.submissions.manage', $meeting), false);
     }
 
-    public function test_course_creation_requires_modules_and_rolls_back_invalid_module_data(): void
+    public function test_course_creation_requires_a_module_count_between_one_and_sixteen(): void
     {
         [$existingCourse, $laboran, $aslab, $dosen] = $this->fixture();
         $payload = [
@@ -77,23 +84,68 @@ class QaWorkflowTest extends TestCase
         ];
 
         $this->actingAs($laboran)->post(route('courses.store'), $payload)
-            ->assertSessionHasErrors('modules');
+            ->assertSessionHasErrors('module_count');
         $this->assertDatabaseMissing('courses', ['course_name' => 'Basis Data']);
 
-        $payload['modules'] = [
-            ['meeting_number' => 1, 'title' => 'Modul 1', 'module_drive_link' => 'https://drive.google.com/file/d/module-1/view'],
-            ['meeting_number' => 2, 'title' => 'Modul 2', 'module_drive_link' => 'https://example.test/not-drive'],
-        ];
+        $payload['module_count'] = 17;
         $this->post(route('courses.store'), $payload)
-            ->assertSessionHasErrors('modules.1.module_drive_link');
+            ->assertSessionHasErrors('module_count');
         $this->assertDatabaseMissing('courses', ['course_name' => 'Basis Data']);
 
-        $payload['modules'][1]['module_drive_link'] = 'https://drive.google.com/file/d/module-2/view';
+        $payload['module_count'] = 7;
         $response = $this->post(route('courses.store'), $payload)->assertSessionHasNoErrors();
         $course = Course::where('course_name', 'Basis Data')->firstOrFail();
         $response->assertRedirect(route('courses.show', $course));
-        $this->assertSame(2, $course->meetings()->count());
+        $this->assertSame(7, $course->meetings()->count());
+        $this->assertSame(0, $course->meetings()->whereNotNull('published_at')->count());
+        $this->actingAs($laboran)->get(route('courses.show', $course))->assertSee('Coming Soon');
         $this->assertDatabaseCount('courses', 2);
+    }
+
+    public function test_modules_can_be_added_and_opened_without_material_while_identity_stays_fixed(): void
+    {
+        [$course, $laboran, $aslab, $dosen, $student] = $this->fixture();
+        $first = $course->meetings()->create(['meeting_number' => 1, 'title' => 'Modul 1']);
+        $second = $course->meetings()->create(['meeting_number' => 2, 'title' => 'Modul 2']);
+
+        $this->actingAs($student)->get(route('mahasiswa.submissions.manage', $first))->assertNotFound();
+        $this->get(route('courses.show', $course))->assertOk()->assertSee('data-module-status="coming-soon"', false);
+
+        $outsider = User::factory()->create(['role' => 'Aslab']);
+        $this->actingAs($outsider)->get(route('courses.modules.edit', $course))->assertForbidden();
+
+        $this->actingAs($aslab)->put(route('courses.modules.update', $course), ['modules' => [
+            ['id' => $first->id, 'title' => 'Dasar Pemrograman', 'module_drive_link' => '', 'is_published' => 1],
+            ['id' => $second->id, 'title' => 'Modul 2', 'module_drive_link' => 'https://drive.google.com/file/d/material-two/view', 'is_published' => 0],
+            ['title' => 'Praktik Controller', 'module_drive_link' => '', 'is_published' => 1],
+        ]])->assertRedirect(route('courses.show', $course));
+
+        $this->assertDatabaseHas('meetings', ['id' => $first->id, 'meeting_number' => 1, 'title' => 'Dasar Pemrograman']);
+        $this->assertDatabaseHas('meetings', ['id' => $second->id, 'meeting_number' => 2, 'title' => 'Modul 2', 'module_drive_link' => 'https://drive.google.com/file/d/material-two/view']);
+        $this->assertDatabaseHas('meetings', ['course_id' => $course->id, 'meeting_number' => 3, 'title' => 'Praktik Controller', 'module_drive_link' => null]);
+        $third = $course->meetings()->where('meeting_number', 3)->firstOrFail();
+        $this->assertNotNull($first->fresh()->published_at);
+        $this->assertNull($second->fresh()->published_at);
+        $this->assertNotNull($third->published_at);
+
+        $this->actingAs($student)->post(route('submissions.store', $first), [
+            'submission_link' => 'https://drive.google.com/file/d/report-one/view',
+        ])->assertRedirect(route('courses.show', $course));
+        $this->post(route('submissions.store', $second), [
+            'submission_link' => 'https://drive.google.com/file/d/report-two/view',
+        ])->assertNotFound();
+
+        $this->assertDatabaseHas('submissions', ['meeting_id' => $first->id, 'student_id' => $student->id]);
+        $this->assertDatabaseMissing('submissions', ['meeting_id' => $second->id, 'student_id' => $student->id]);
+
+        $this->actingAs($student)->post(route('submissions.store', $third), [
+            'submission_link' => 'https://drive.google.com/file/d/report-three/view',
+        ])->assertRedirect(route('courses.show', $course));
+        $this->actingAs($aslab)->get(route('submissions.index', $third))
+            ->assertOk()
+            ->assertSee('https://drive.google.com/file/d/report-three/view', false)
+            ->assertSee('Preview')
+            ->assertSee('Buka Drive');
     }
 
     public function test_rejected_submission_is_visible_and_can_be_replaced_after_deadline(): void
@@ -105,6 +157,7 @@ class QaWorkflowTest extends TestCase
             'title' => 'Modul Jaringan',
             'module_drive_link' => 'https://drive.google.com/file/d/material/view',
             'deadline' => now()->addDay(),
+            'published_at' => now(),
         ]);
 
         $this->actingAs($student)->post(route('submissions.store', $meeting), [
@@ -151,7 +204,7 @@ class QaWorkflowTest extends TestCase
     {
         [$course, $laboran, $aslab, $dosen, $student] = $this->fixture();
         foreach ([false, true] as $final) {
-            $task = $final ? FinalTask::create(['course_id' => $course->id, 'description' => 'Final', 'deadline' => now()->addDay()]) : Meeting::create(['course_id' => $course->id, 'meeting_number' => 1, 'title' => 'Modul', 'deadline' => now()->addDay()]);
+            $task = $final ? FinalTask::create(['course_id' => $course->id, 'description' => 'Final', 'deadline' => now()->addDay()]) : Meeting::create(['course_id' => $course->id, 'meeting_number' => 1, 'title' => 'Modul', 'module_drive_link' => 'https://drive.google.com/file/d/module/view', 'deadline' => now()->addDay(), 'published_at' => now()]);
             $this->actingAs($student)->post(route($final ? 'final-tasks.submit' : 'submissions.store', $task), ['submission_link' => 'https://drive.google.com/file/d/v1/view'])->assertSessionHasNoErrors();
             $submission = Submission::where('is_final', $final)->sole();
             $review = route($final ? 'final-tasks.approve' : 'submissions.approve', $submission);
@@ -191,7 +244,7 @@ class QaWorkflowTest extends TestCase
     public function test_duplicate_create_stale_edit_and_completed_reports_cannot_overwrite_documents(): void
     {
         [$course, $laboran, $aslab, $dosen, $student] = $this->fixture();
-        $meeting = Meeting::create(['course_id' => $course->id, 'meeting_number' => 1, 'title' => 'Modul', 'deadline' => now()->addDay()]);
+        $meeting = Meeting::create(['course_id' => $course->id, 'meeting_number' => 1, 'title' => 'Modul', 'module_drive_link' => 'https://drive.google.com/file/d/module/view', 'deadline' => now()->addDay(), 'published_at' => now()]);
         $link = 'https://drive.google.com/file/d/report-1/view';
         $this->actingAs($student)->post(route('submissions.store', $meeting), ['submission_link' => $link])->assertRedirect();
         $submission = Submission::sole();
@@ -211,9 +264,14 @@ class QaWorkflowTest extends TestCase
     public function test_new_staff_pages_render_and_invalid_drive_links_cannot_be_submitted(): void
     {
         [$course, $laboran, $aslab, $dosen, $student] = $this->fixture();
-        $this->actingAs($laboran)->get(route('courses.modules.edit', $course))->assertOk()->assertSee('Simpan dan publikasikan');
+        $course->meetings()->create(['meeting_number' => 1, 'title' => 'Modul 1']);
+        $this->actingAs($laboran)->get(route('courses.modules.edit', $course))->assertOk()->assertSee('Simpan semua modul');
         $this->get(route('courses.staff.edit', $course))->assertOk();
-        $meeting = Meeting::create(['course_id' => $course->id, 'meeting_number' => 1, 'title' => 'Modul']);
+        $meeting = $course->meetings()->firstOrFail();
+        $meeting->update([
+            'module_drive_link' => 'https://drive.google.com/file/d/material/view',
+            'published_at' => now(),
+        ]);
         foreach (['https://evil.test/file/d/id/view', 'https://drive.google.com/drive/folders/id'] as $link) {
             $this->actingAs($student)->post(route('submissions.store', $meeting), ['submission_link' => $link])->assertSessionHasErrors('submission_link');
         }
@@ -226,12 +284,12 @@ class QaWorkflowTest extends TestCase
         $replacement = User::factory()->create(['role' => 'Aslab']);
         $this->actingAs($laboran)->put(route('courses.staff.update', $course), ['aslab_id' => $replacement->id, 'dosen_id' => $dosen->id])->assertRedirect();
         $this->assertDatabaseHas('course_staff_histories', ['course_id' => $course->id, 'previous_aslab_id' => $aslab->id, 'aslab_id' => $replacement->id]);
-        $meeting = Meeting::create(['course_id' => $course->id, 'meeting_number' => 1, 'title' => 'Modul']);
+        $meeting = Meeting::create(['course_id' => $course->id, 'meeting_number' => 1, 'title' => 'Modul', 'module_drive_link' => 'https://drive.google.com/file/d/module/view', 'published_at' => now()]);
         $this->post(route('attendance.store', $meeting), ['attendances' => [$student->id => 'TK']])->assertRedirect();
         $this->actingAs($student)->get(route('courses.show', $course))->assertSee('Tanpa Keterangan');
         $course->semester->update(['is_active' => false]);
         $this->post(route('submissions.store', $meeting), ['submission_link' => 'https://drive.google.com/file/d/v1/view'])->assertForbidden();
         $this->get(route('courses.show', $course))->assertOk();
-        $this->actingAs($laboran)->post(route('meetings.store', $course), [])->assertForbidden();
+        $this->assertFalse(Route::has('meetings.store'));
     }
 }

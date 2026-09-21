@@ -2,7 +2,9 @@
     @if(!$meeting->course->semester->is_active)<p class="mb-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">Kelas arsip hanya dapat dibaca.</p>@endif
     <x-slot name="header_title">Monitoring: {{ $meeting->title }}</x-slot>
 
-    <div class="max-w-[95rem] mx-auto py-0 px-4">
+    <div class="max-w-[95rem] mx-auto py-0 px-4"
+         x-data="{ previewOpen: false, previewUrl: null, driveUrl: null, previewName: '', closePreview() { this.previewOpen = false; this.previewUrl = null; } }"
+         @keydown.escape.window="if (previewOpen) closePreview()">
         
         {{-- BARIS 1: NAVIGASI, JUDUL, DAN DEADLINE --}}
         <div class="mb-8 flex flex-col lg:flex-row lg:items-end justify-between gap-6">
@@ -18,11 +20,11 @@
                     <h2 class="text-3xl font-semibold text-gray-800 tracking-tight leading-none">{{ $meeting->title }}</h2>
                     
                     {{-- TOMBOL EDIT PERTEMUAN --}}
-                    @if(in_array(strtoupper(auth()->user()->role), ['ASLAB', 'LABORAN', 'DOSEN']))
+                    @can('manageModules', $meeting->course)
                     <button onclick="openEditMeetingModal()" class="p-2 bg-emerald-50 text-emerald-600 rounded-xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm border border-emerald-100" title="Edit Detail Pertemuan">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-4m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
                     </button>
-                    @endif
+                    @endcan
                 </div>
                 <p class="text-xs font-bold text-gray-400 mt-2 tracking-normal">{{ $meeting->course->course_name }} — Pertemuan #{{ $meeting->meeting_number }}</p>
             </div>
@@ -144,6 +146,7 @@
                         @foreach($meeting->course->students as $student)
                             @php 
                                 $sub = $submissions[$student->id] ?? null; 
+                                $documentUrl = $sub?->documentUrl();
                                 $subStatus = $sub ? 'true' : 'false';
                                 $aslabStat = $sub ? strtoupper($sub->aslab_status) : 'NONE';
                                 $laboranStat = $sub ? strtoupper($sub->laboran_status) : 'NONE';
@@ -218,7 +221,13 @@
 
                                 <td class="px-8 py-5 text-center whitespace-nowrap">
                                     @if($sub)
-                                        <a href="{{ route('submissions.handler', $sub->id) }}" class="whitespace-nowrap inline-block bg-emerald-600 text-white px-6 py-3.5 rounded-2xl text-xs font-semibold hover:bg-emerald-700 shadow-xl shadow-emerald-100 active:scale-95 transition-all tracking-normal">Review File</a>
+                                        <div class="flex items-center justify-center gap-2">
+                                            <button type="button"
+                                                    @click="previewUrl = @js($sub->previewUrl()); driveUrl = @js($documentUrl); previewName = @js($student->name); previewOpen = true; $nextTick(() => $refs.closePreview.focus())"
+                                                    class="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100">Preview</button>
+                                            <a href="{{ $documentUrl }}" target="_blank" rel="noopener noreferrer" class="rounded-xl border border-slate-200 px-3 py-2.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50">Buka Drive</a>
+                                            <a href="{{ route('submissions.handler', $sub->id) }}" class="rounded-xl bg-emerald-600 px-4 py-2.5 text-xs font-semibold text-white shadow-lg shadow-emerald-100 transition hover:bg-emerald-700">Review</a>
+                                        </div>
                                     @else
                                         <span class="whitespace-nowrap text-gray-300 text-xs font-semibold italic tracking-normal opacity-50 block text-center">N/A</span>
                                     @endif
@@ -235,10 +244,33 @@
                 </div>
             </div>
         </div>
+
+        <template x-teleport="body">
+            <div x-show="previewOpen" x-cloak role="dialog" aria-modal="true" aria-labelledby="submission-preview-title"
+                 class="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm"
+                 @click.self="closePreview()">
+                <div class="flex h-[90vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl">
+                    <div class="flex items-center justify-between gap-4 border-b border-slate-100 px-5 py-4 sm:px-6">
+                        <div class="min-w-0">
+                            <h2 id="submission-preview-title" class="truncate font-semibold text-slate-900">Preview laprak <span x-text="previewName"></span></h2>
+                            <p class="mt-1 text-xs text-slate-500">Jika dokumen meminta izin, buka link Drive dan periksa pengaturan aksesnya.</p>
+                        </div>
+                        <div class="flex shrink-0 items-center gap-2">
+                            <a :href="driveUrl" target="_blank" rel="noopener noreferrer" class="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700">Buka Drive</a>
+                            <button x-ref="closePreview" type="button" @click="closePreview()" class="rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white">Tutup</button>
+                        </div>
+                    </div>
+                    <template x-if="previewUrl">
+                        <iframe :src="previewUrl" title="Preview laporan praktikum" class="min-h-0 w-full flex-1 bg-slate-50" referrerpolicy="no-referrer"></iframe>
+                    </template>
+                    <p x-show="!previewUrl" class="flex flex-1 items-center justify-center p-8 text-center text-sm text-slate-500">Preview tidak tersedia. Gunakan tombol Buka Drive untuk melihat dokumen.</p>
+                </div>
+            </div>
+        </template>
     </div>
 
     {{-- MODAL EDIT PERTEMUAN --}}
-    @if(in_array(strtoupper(auth()->user()->role), ['ASLAB', 'LABORAN', 'DOSEN']))
+    @can('manageModules', $meeting->course)
     <div id="modalEditMeeting" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md hidden items-center justify-center z-50 p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in duration-300">
             <form action="{{ route('meetings.update', $meeting->id) }}" method="POST">
@@ -250,7 +282,7 @@
                 </div>
                 <div class="p-6 space-y-6">
                     <div>
-                        <label class="block text-xs font-semibold text-gray-400 tracking-normal mb-2.5">Judul Materi</label>
+                        <label class="block text-xs font-semibold text-gray-400 tracking-normal mb-2.5">Judul Modul</label>
                         <input type="text" name="title" value="{{ $meeting->title }}" required class="block w-full rounded-2xl border-gray-100 text-sm font-bold focus:ring-4 focus:ring-emerald-50 p-4 bg-gray-50 transition">
                     </div>
                     <div>
@@ -258,7 +290,7 @@
                         <textarea name="description" rows="4" class="block w-full rounded-2xl border-gray-100 text-sm font-bold focus:ring-4 focus:ring-emerald-50 p-4 bg-gray-50 transition resize-none" placeholder="Tuliskan instruksi materi...">{{ $meeting->description }}</textarea>
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-gray-400 tracking-normal mb-2.5">Link Modul (G-Drive)</label>
+                        <label class="block text-xs font-semibold text-gray-400 tracking-normal mb-2.5">Link Materi (opsional)</label>
                         <input type="url" name="module_drive_link" value="{{ $meeting->module_drive_link }}" placeholder="https://..." class="block w-full rounded-2xl border-gray-100 text-sm font-bold focus:ring-4 focus:ring-emerald-50 p-4 bg-gray-50 transition text-emerald-600">
                     </div>
                 </div>
@@ -269,7 +301,7 @@
             </fieldset></form>
         </div>
     </div>
-    @endif
+    @endcan
 
     <script>
         {{-- FUNGSI MODAL EDIT --}}

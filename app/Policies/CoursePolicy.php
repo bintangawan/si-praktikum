@@ -32,6 +32,12 @@ class CoursePolicy
             || ($user->hasRole(UserRole::ASLAB) && (string) $course->aslab_id === (string) $user->id);
     }
 
+    public function manageModules(User $user, Course $course): bool
+    {
+        return $user->hasRole(UserRole::LABORAN)
+            || ($user->hasRole(UserRole::ASLAB) && (string) $course->aslab_id === (string) $user->id);
+    }
+
     public function participate(User $user, Course $course): bool
     {
         return $user->hasRole(UserRole::MAHASISWA)

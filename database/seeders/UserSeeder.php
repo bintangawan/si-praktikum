@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Enums\UserRole;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
@@ -12,33 +13,23 @@ class UserSeeder extends Seeder
     {
         $users = [
             [
-                'id' => '123',
-                'name' => 'Admin Laboratorium',
+                'id' => '0701223160',
+                'name' => 'Muhammad Fathir Aulia',
                 'email' => 'laboran@uinsu.ac.id',
-                'role' => 'Laboran',
+                'role' => UserRole::LABORAN->value,
             ],
             [
-                'id' => '0702220001',
-                'name' => 'Muhammad Fadli Ramadhan',
+                'id' => '0701222090',
+                'name' => 'Bintang Kurniawan Herman',
                 'email' => 'aslab@uinsu.ac.id',
-                'role' => 'Aslab',
+                'role' => UserRole::ASLAB->value,
             ],
             [
-                'id' => '198705152019031004',
-                'name' => 'Dr. Rahmat Hidayat, M.Kom.',
-                'email' => 'dosen@uinsu.ac.id',
-                'role' => 'Dosen',
+                'id' => '0701225090',
+                'name' => 'Bintangin',
+                'email' => '0701225090@student.uinsu.ac.id',
+                'role' => UserRole::MAHASISWA->value,
             ],
-            ['id' => '0701231001', 'name' => 'Ahmad Fauzan', 'email' => '0701231001@student.uinsu.ac.id', 'role' => 'Mahasiswa'],
-            ['id' => '0701231002', 'name' => 'Aisyah Putri Ramadhani', 'email' => '0701231002@student.uinsu.ac.id', 'role' => 'Mahasiswa'],
-            ['id' => '0701231003', 'name' => 'Bima Pratama', 'email' => '0701231003@student.uinsu.ac.id', 'role' => 'Mahasiswa'],
-            ['id' => '0701231004', 'name' => 'Citra Ananda', 'email' => '0701231004@student.uinsu.ac.id', 'role' => 'Mahasiswa'],
-            ['id' => '0701231005', 'name' => 'Dimas Saputra', 'email' => '0701231005@student.uinsu.ac.id', 'role' => 'Mahasiswa'],
-            ['id' => '0701231006', 'name' => 'Fahira Nabila', 'email' => '0701231006@student.uinsu.ac.id', 'role' => 'Mahasiswa'],
-            ['id' => '0701231007', 'name' => 'Gilang Maulana', 'email' => '0701231007@student.uinsu.ac.id', 'role' => 'Mahasiswa'],
-            ['id' => '0701231008', 'name' => 'Nadya Khairunnisa', 'email' => '0701231008@student.uinsu.ac.id', 'role' => 'Mahasiswa'],
-            ['id' => '0701231009', 'name' => 'Rizky Akbar', 'email' => '0701231009@student.uinsu.ac.id', 'role' => 'Mahasiswa'],
-            ['id' => '0701231010', 'name' => 'Salsabila Zahra', 'email' => '0701231010@student.uinsu.ac.id', 'role' => 'Mahasiswa'],
         ];
 
         foreach ($users as $user) {

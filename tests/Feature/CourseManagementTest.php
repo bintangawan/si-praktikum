@@ -25,25 +25,12 @@ class CourseManagementTest extends TestCase
             'target_semester' => 3,
             'dosen_id' => $dosen->id,
             'aslab_id' => $aslab->id,
-            'modules' => [
-                [
-                    'meeting_number' => 1,
-                    'title' => 'Pengenalan Laravel',
-                    'description' => 'Buat laporan praktikum pertama.',
-                    'module_drive_link' => 'https://drive.google.com/file/d/module-1/view',
-                    'deadline' => now()->addWeek()->format('Y-m-d H:i:s'),
-                ],
-                [
-                    'meeting_number' => 2,
-                    'title' => 'Routing dan Controller',
-                    'module_drive_link' => 'https://drive.google.com/file/d/module-2/view',
-                ],
-            ],
+            'module_count' => 2,
         ]);
 
         $course = Course::query()->sole();
         $response->assertRedirect(route('courses.show', $course))
-            ->assertSessionHas('success', 'Kelas dan 2 modul berhasil dibuat.');
+            ->assertSessionHas('success');
 
         $this->assertSame('Pemrograman Web', $course->course_name);
         $this->assertSame('TI-3A', $course->class_group);
@@ -55,7 +42,8 @@ class CourseManagementTest extends TestCase
         $this->assertDatabaseHas('meetings', [
             'course_id' => $course->id,
             'meeting_number' => 1,
-            'title' => 'Pengenalan Laravel',
+            'title' => 'Modul 1',
+            'published_at' => null,
         ]);
 
         $this->assertStringContainsString('/courses/pemrograman-web-ti-3a', route('courses.show', $course));

@@ -42,21 +42,35 @@ class AdministrativeWorkflowTest extends TestCase
     {
         [$laboran, $aslab, $dosen, $course] = $this->courseFixture();
 
-        $this->actingAs($aslab)->post(route('meetings.store', $course), [
+        $meeting = Meeting::query()->create([
+            'course_id' => $course->id,
             'meeting_number' => 1,
-            'title' => 'Pengenalan',
-            'description' => 'Materi awal',
-            'module_drive_link' => 'https://drive.google.com/file/d/module-example/view',
-            'deadline' => now()->addDay()->format('Y-m-d H:i:s'),
-        ])->assertRedirect()->assertSessionHas('success');
+            'title' => 'Modul 1',
+        ]);
 
-        $meeting = Meeting::query()->sole();
-        $this->actingAs($dosen)->put(route('meetings.update', $meeting), [
+        $this->actingAs($aslab)->put(route('courses.modules.update', $course), ['modules' => [[
+            'id' => $meeting->id,
             'title' => 'Pengenalan Sistem',
             'description' => 'Materi diperbarui',
             'module_drive_link' => 'https://drive.google.com/file/d/module-updated/view',
-        ])->assertRedirect()->assertSessionHas('success');
+            'deadline' => now()->addDay()->format('Y-m-d H:i:s'),
+            'is_published' => 1,
+        ]]])->assertRedirect()->assertSessionHas('success');
         $this->assertDatabaseHas('meetings', ['id' => $meeting->id, 'title' => 'Pengenalan Sistem']);
+        $this->assertNotNull($meeting->fresh()->published_at);
+
+        $this->actingAs($aslab)->put(route('meetings.update', $meeting), [
+            'title' => 'Pengenalan Sistem Informasi',
+            'description' => 'Materi akhir',
+            'module_drive_link' => 'https://drive.google.com/file/d/module-final/view',
+        ])->assertRedirect()->assertSessionHas('success');
+        $this->assertDatabaseHas('meetings', ['id' => $meeting->id, 'title' => 'Pengenalan Sistem Informasi']);
+
+        $this->actingAs($dosen)->get(route('courses.modules.edit', $course))->assertForbidden();
+        $this->actingAs($dosen)->put(route('meetings.update', $meeting), [
+            'title' => 'Tidak boleh',
+            'module_drive_link' => 'https://drive.google.com/file/d/blocked/view',
+        ])->assertForbidden();
 
         $finalTask = FinalTask::query()->create([
             'course_id' => $course->id,

@@ -7,7 +7,6 @@ use App\Models\Course;
 use App\Models\Semester;
 use App\Models\Submission;
 use App\Models\User;
-use App\Services\DriveLink;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -77,12 +76,7 @@ class CourseController extends Controller
             'target_semester' => ['required', 'integer', 'min:1', 'max:14'],
             'dosen_id' => ['required', Rule::exists('users', 'id')->where('role', UserRole::DOSEN->value)->whereNotNull('approved_at')],
             'aslab_id' => ['required', Rule::exists('users', 'id')->where('role', UserRole::ASLAB->value)->whereNotNull('approved_at')],
-            'modules' => ['required', 'array', 'min:1', 'max:50'],
-            'modules.*.meeting_number' => ['required', 'integer', 'min:1', 'max:50', 'distinct'],
-            'modules.*.title' => ['required', 'string', 'max:255'],
-            'modules.*.description' => ['nullable', 'string', 'max:10000'],
-            'modules.*.module_drive_link' => ['required', 'string', 'max:2048', DriveLink::rule()],
-            'modules.*.deadline' => ['nullable', 'date'],
+            'module_count' => ['required', 'integer', 'min:1', 'max:16'],
         ]);
 
         $duplicate = Course::query()
@@ -95,10 +89,10 @@ class CourseController extends Controller
             return back()->withInput()->with('error', 'Kelas tersebut sudah ada pada semester aktif.');
         }
 
-        $modules = $validated['modules'];
-        unset($validated['modules']);
+        $moduleCount = (int) $validated['module_count'];
+        unset($validated['module_count']);
 
-        $course = DB::transaction(function () use ($validated, $modules, $activeSemester, $request): Course {
+        $course = DB::transaction(function () use ($validated, $moduleCount, $activeSemester, $request): Course {
             $course = Course::query()->create([
                 ...$validated,
                 'semester_id' => $activeSemester->id,
@@ -106,13 +100,18 @@ class CourseController extends Controller
                 'enrollment_code' => $this->uniqueEnrollmentCode(),
             ]);
 
-            $course->meetings()->createMany($modules);
+            $course->meetings()->createMany(
+                collect(range(1, $moduleCount))->map(fn (int $number): array => [
+                    'meeting_number' => $number,
+                    'title' => "Modul {$number}",
+                ])->all()
+            );
 
             return $course;
         });
 
         return redirect()->route('courses.show', $course)
-            ->with('success', 'Kelas dan '.count($modules).' modul berhasil dibuat.');
+            ->with('success', "Kelas dan {$moduleCount} kartu modul berhasil dibuat. Aslab dapat mengatur judul dan membuka pengumpulan setiap modul.");
     }
 
     public function enroll(Request $request): RedirectResponse

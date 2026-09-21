@@ -141,7 +141,7 @@
                             <a href="{{ $tutorial->url }}" target="_blank" class="text-xs font-bold text-emerald-700 hover:text-emerald-900 transition">Buka Sumber asli &rarr;</a>
                             
                             @if(strtoupper(auth()->user()->role) === 'LABORAN')
-                                <form action="{{ route('tutorials.destroy', $tutorial->id) }}" method="POST" onsubmit="return confirm('Hapus tutorial ini?')">
+                                <form action="{{ route('tutorials.destroy', $tutorial->id) }}" method="POST" data-confirm-title="Hapus tutorial?" data-confirm="Tutorial ini akan dihapus permanen." data-confirm-button="Ya, hapus">
                                     @csrf
                                     @method('DELETE')
                                     <button type="submit" class="text-red-500 hover:text-red-700 ml-2">

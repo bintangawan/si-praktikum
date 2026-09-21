@@ -1,138 +1,98 @@
 <x-app-layout>
-    <x-slot name="header_title">Buat kelas dan modul praktikum</x-slot>
+    <x-slot name="header_title">Buat kelas praktikum</x-slot>
 
-    @php
-        $initialModules = old('modules', [[
-            'meeting_number' => 1,
-            'title' => 'Modul 1',
-            'description' => '',
-            'module_drive_link' => '',
-            'deadline' => '',
-        ]]);
-    @endphp
-
-    <form
-        action="{{ route('courses.store') }}"
-        method="POST"
-        class="space-y-6"
-        x-data="{
-            submitting: false,
-            modules: @js($initialModules),
-            addModule() {
-                if (this.modules.length >= 50) return;
-                const number = this.modules.length + 1;
-                this.modules.push({ meeting_number: number, title: `Modul ${number}`, description: '', module_drive_link: '', deadline: '' });
-            },
-            removeModule(index) {
-                if (this.modules.length === 1) return;
-                this.modules.splice(index, 1);
-                this.modules.forEach((module, position) => {
-                    module.meeting_number = position + 1;
-                    if (/^Modul \d+$/.test(module.title || '')) module.title = `Modul ${position + 1}`;
-                });
-            }
-        }"
-        @submit="submitting = true"
-    >
+    <form action="{{ route('courses.store') }}" method="POST" class="space-y-6"
+        x-data="{ submitting: false, moduleCount: {{ (int) old('module_count', 8) }} }" @submit="submitting = true">
         @csrf
 
         @if($errors->any())
             <div class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-700" role="alert">
                 <p class="font-semibold">Kelas belum tersimpan. Periksa data berikut:</p>
-                <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">
-                    @foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach
-                </ul>
+                <ul class="mt-2 list-disc space-y-1 pl-5 text-sm">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
             </div>
         @endif
 
         @if($dosens->isEmpty() || $aslabs->isEmpty())
             <div class="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-amber-800" role="alert">
                 <p class="font-semibold">Data pengajar belum lengkap.</p>
-                <p class="mt-1 text-sm">
-                    @if($dosens->isEmpty()) Belum ada akun Dosen yang aktif. @endif
-                    @if($aslabs->isEmpty()) Belum ada akun Asisten Laboratorium yang aktif. @endif
-                </p>
+                <p class="mt-1 text-sm">@if($dosens->isEmpty()) Belum ada akun Dosen yang aktif. @endif @if($aslabs->isEmpty()) Belum ada akun Asisten Laboratorium yang aktif. @endif</p>
             </div>
         @endif
 
-        <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div class="mb-6">
-                <p class="text-sm font-semibold text-emerald-700">Langkah 1</p>
-                <h2 class="mt-1 text-xl font-semibold text-slate-900">Informasi kelas</h2>
-                <p class="mt-2 text-sm text-slate-500">Kode enrollment dibuat otomatis setelah kelas dan seluruh modul berhasil disimpan.</p>
+        <div class="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(340px,0.72fr)]">
+            <div class="space-y-6">
+                <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                    <div class="mb-6">
+                        <p class="text-sm font-semibold text-emerald-700">Langkah 1</p>
+                        <h2 class="mt-1 text-xl font-semibold text-slate-900">Informasi kelas</h2>
+                        <p class="mt-2 text-sm leading-6 text-slate-500">Laboran menentukan struktur kelas. Aslab yang dipilih akan melengkapi materi setiap modul setelah kelas dibuat.</p>
+                    </div>
+
+                    <div class="grid gap-5 md:grid-cols-2">
+                        <label class="text-sm font-semibold text-slate-700 md:col-span-2">Nama mata kuliah
+                            <input type="text" name="course_name" value="{{ old('course_name') }}" maxlength="255" required class="mt-2 block w-full rounded-xl border-slate-200 bg-slate-50/70" placeholder="Contoh: Jaringan Syaraf Tiruan">
+                        </label>
+                        <label class="text-sm font-semibold text-slate-700">Kelas
+                            <input type="text" name="class_group" value="{{ old('class_group') }}" maxlength="50" required class="mt-2 block w-full rounded-xl border-slate-200 bg-slate-50/70" placeholder="Contoh: IK-1">
+                        </label>
+                        <label class="text-sm font-semibold text-slate-700">Semester mahasiswa
+                            <input type="number" name="target_semester" value="{{ old('target_semester') }}" min="1" max="14" required class="mt-2 block w-full rounded-xl border-slate-200 bg-slate-50/70" placeholder="Contoh: 5">
+                        </label>
+                        <label class="text-sm font-semibold text-slate-700">Dosen pengampu
+                            <select name="dosen_id" required class="mt-2 block w-full rounded-xl border-slate-200 bg-slate-50/70">
+                                <option value="">Pilih dosen</option>
+                                @foreach($dosens as $dosen)<option value="{{ $dosen->id }}" @selected((string) old('dosen_id') === (string) $dosen->id)>{{ $dosen->name }} — {{ $dosen->id }}</option>@endforeach
+                            </select>
+                        </label>
+                        <label class="text-sm font-semibold text-slate-700">Asisten laboratorium
+                            <select name="aslab_id" required class="mt-2 block w-full rounded-xl border-slate-200 bg-slate-50/70">
+                                <option value="">Pilih asisten</option>
+                                @foreach($aslabs as $aslab)<option value="{{ $aslab->id }}" @selected((string) old('aslab_id') === (string) $aslab->id)>{{ $aslab->name }} — {{ $aslab->id }}</option>@endforeach
+                            </select>
+                            <span class="mt-2 block text-xs font-normal leading-5 text-slate-500">Aslab terpilih dapat mengatur judul, materi, instruksi, dan deadline modul.</span>
+                        </label>
+                    </div>
+                </section>
+
+                <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
+                    <div class="mb-6">
+                        <p class="text-sm font-semibold text-emerald-700">Langkah 2</p>
+                        <h2 class="mt-1 text-xl font-semibold text-slate-900">Tentukan jumlah modul</h2>
+                        <p class="mt-2 text-sm leading-6 text-slate-500">Jumlah modul bebas dari 1 sampai 16 dan menjadi struktur tetap kelas. Modul yang materinya belum dilengkapi akan tampil sebagai Coming Soon.</p>
+                    </div>
+
+                    <div class="flex flex-col gap-5 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-5 sm:flex-row sm:items-center sm:justify-between">
+                        <div><p class="text-sm font-semibold text-slate-800">Jumlah kartu modul</p><p class="mt-1 text-xs leading-5 text-slate-500">Umumnya praktikum menggunakan 6–8 modul.</p></div>
+                        <div class="flex items-center gap-3">
+                            <button type="button" @click="moduleCount = Math.max(1, moduleCount - 1)" :disabled="moduleCount <= 1" class="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-200 bg-white text-xl font-semibold text-emerald-800 disabled:opacity-40" aria-label="Kurangi jumlah modul">−</button>
+                            <input name="module_count" x-model.number="moduleCount" @input="moduleCount = Math.min(16, Math.max(1, Number(moduleCount) || 1))" type="number" min="1" max="16" required class="h-12 w-20 rounded-xl border-emerald-200 bg-white text-center text-lg font-bold text-emerald-800">
+                            <button type="button" @click="moduleCount = Math.min(16, moduleCount + 1)" :disabled="moduleCount >= 16" class="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-200 bg-white text-xl font-semibold text-emerald-800 disabled:opacity-40" aria-label="Tambah jumlah modul">+</button>
+                        </div>
+                    </div>
+                </section>
             </div>
 
-            <div class="grid gap-5 md:grid-cols-2">
-                <label class="md:col-span-2 text-sm font-semibold text-slate-700">Nama mata kuliah
-                    <input type="text" name="course_name" value="{{ old('course_name') }}" maxlength="255" required class="mt-2 block w-full rounded-xl border-slate-200 bg-slate-50/70" placeholder="Contoh: Jaringan Syaraf Tiruan">
-                </label>
-                <label class="text-sm font-semibold text-slate-700">Kelas
-                    <input type="text" name="class_group" value="{{ old('class_group') }}" maxlength="50" required class="mt-2 block w-full rounded-xl border-slate-200 bg-slate-50/70" placeholder="Contoh: IK-1">
-                </label>
-                <label class="text-sm font-semibold text-slate-700">Semester mahasiswa
-                    <input type="number" name="target_semester" value="{{ old('target_semester') }}" min="1" max="14" required class="mt-2 block w-full rounded-xl border-slate-200 bg-slate-50/70" placeholder="Contoh: 5">
-                </label>
-                <label class="text-sm font-semibold text-slate-700">Dosen pengampu
-                    <select name="dosen_id" required class="mt-2 block w-full rounded-xl border-slate-200 bg-slate-50/70">
-                        <option value="">Pilih dosen</option>
-                        @foreach($dosens as $dosen)<option value="{{ $dosen->id }}" @selected(old('dosen_id') === $dosen->id)>{{ $dosen->name }} — {{ $dosen->id }}</option>@endforeach
-                    </select>
-                </label>
-                <label class="text-sm font-semibold text-slate-700">Asisten laboratorium
-                    <select name="aslab_id" required class="mt-2 block w-full rounded-xl border-slate-200 bg-slate-50/70">
-                        <option value="">Pilih asisten</option>
-                        @foreach($aslabs as $aslab)<option value="{{ $aslab->id }}" @selected(old('aslab_id') === $aslab->id)>{{ $aslab->name }} — {{ $aslab->id }}</option>@endforeach
-                    </select>
-                </label>
-            </div>
-        </section>
-
-        <section class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <div class="mb-6 flex flex-wrap items-start justify-between gap-4">
-                <div>
-                    <p class="text-sm font-semibold text-emerald-700">Langkah 2</p>
-                    <h2 class="mt-1 text-xl font-semibold text-slate-900">Modul praktikum</h2>
-                    <p class="mt-2 max-w-3xl text-sm leading-6 text-slate-500">Minimal satu modul wajib dibuat. Setiap modul otomatis menjadi satu kartu dan satu tempat upload laprak yang berbeda untuk mahasiswa.</p>
+            <aside class="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm xl:sticky xl:top-6">
+                <div class="flex items-start justify-between gap-4">
+                    <div><p class="text-sm font-semibold text-emerald-700">Preview struktur</p><h2 class="mt-1 text-xl font-semibold text-slate-900"><span x-text="moduleCount"></span> modul praktikum</h2></div>
+                    <span class="rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800">Maks. 16</span>
                 </div>
-                <button type="button" @click="addModule()" :disabled="modules.length >= 50" class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-800 disabled:opacity-40">Tambah modul</button>
-            </div>
+                <p class="mt-3 text-sm leading-6 text-slate-500">Kartu ini langsung tersedia setelah kelas dibuat. Aslab dapat mengaktifkannya satu per satu dengan mengisi materi.</p>
 
-            <div class="grid gap-5 xl:grid-cols-2">
-                <template x-for="(module, index) in modules" :key="index">
-                    <article class="rounded-2xl border border-slate-200 bg-slate-50/60 p-5">
-                        <div class="mb-5 flex items-center justify-between gap-3">
-                            <div><p class="text-xs font-semibold text-emerald-700" x-text="`Modul ${index + 1}`"></p><h3 class="mt-1 font-semibold text-slate-900">Materi dan tugas laprak</h3></div>
-                            <button type="button" @click="removeModule(index)" x-show="modules.length > 1" class="rounded-lg px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50">Hapus</button>
-                        </div>
+                <div class="custom-scrollbar mt-6 grid max-h-[34rem] gap-3 overflow-y-auto pr-1 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
+                    <template x-for="number in moduleCount" :key="number">
+                        <article class="rounded-2xl border border-dashed border-slate-200 bg-slate-50/70 p-4">
+                            <div class="flex items-center justify-between gap-3"><span class="text-xs font-semibold text-emerald-700" x-text="`Modul ${number}`"></span><span class="rounded-full bg-slate-200/70 px-2 py-1 text-xs font-semibold text-slate-500">Coming Soon</span></div>
+                            <div class="mt-5 h-2 w-3/4 rounded-full bg-slate-200"></div><div class="mt-2 h-2 w-1/2 rounded-full bg-slate-100"></div>
+                        </article>
+                    </template>
+                </div>
+            </aside>
+        </div>
 
-                        <input type="hidden" :name="`modules[${index}][meeting_number]`" :value="index + 1">
-                        <div class="space-y-4">
-                            <label class="block text-sm font-semibold text-slate-700">Judul modul
-                                <input type="text" :name="`modules[${index}][title]`" x-model="module.title" maxlength="255" required class="mt-2 block w-full rounded-xl border-slate-200 bg-white" :placeholder="`Contoh: Modul ${index + 1} — Pengenalan`">
-                            </label>
-                            <label class="block text-sm font-semibold text-slate-700">Link materi Google Drive
-                                <input type="url" :name="`modules[${index}][module_drive_link]`" x-model="module.module_drive_link" maxlength="2048" required class="mt-2 block w-full rounded-xl border-slate-200 bg-white" placeholder="https://drive.google.com/file/d/.../view">
-                                <span class="mt-2 block text-xs font-normal leading-5 text-slate-500">Gunakan link file Drive yang dapat dibaca mahasiswa, bukan link folder.</span>
-                            </label>
-                            <label class="block text-sm font-semibold text-slate-700">Instruksi laprak
-                                <textarea :name="`modules[${index}][description]`" x-model="module.description" maxlength="10000" rows="3" class="mt-2 block w-full rounded-xl border-slate-200 bg-white" placeholder="Jelaskan pekerjaan dan ketentuan laprak untuk modul ini."></textarea>
-                            </label>
-                            <label class="block text-sm font-semibold text-slate-700">Batas pengumpulan (WIB)
-                                <input type="datetime-local" :name="`modules[${index}][deadline]`" x-model="module.deadline" class="mt-2 block w-full rounded-xl border-slate-200 bg-white">
-                            </label>
-                        </div>
-                    </article>
-                </template>
-            </div>
-            <p class="mt-5 text-sm text-slate-500"><span x-text="modules.length"></span> modul akan dibuat bersama kelas.</p>
-        </section>
-
-        <div class="flex flex-wrap items-center justify-end gap-3">
-            <a href="{{ route('courses.index') }}" class="rounded-xl px-5 py-3 text-sm font-semibold text-slate-600">Batal</a>
-            <button type="submit" :disabled="submitting" @disabled($dosens->isEmpty() || $aslabs->isEmpty()) class="inline-flex w-full items-center justify-center rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white shadow-lg hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:min-w-56">
-                <svg x-show="submitting" class="mr-2 h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg>
-                <span x-text="submitting ? 'Menyimpan kelas...' : `Buat kelas & ${modules.length} modul`">Buat kelas dan modul</span>
-            </button>
+        <div class="flex flex-col-reverse justify-end gap-3 sm:flex-row">
+            <a href="{{ route('courses.index') }}" class="rounded-xl px-5 py-3 text-center text-sm font-semibold text-slate-600">Batal</a>
+            <button type="submit" :disabled="submitting || {{ $dosens->isEmpty() || $aslabs->isEmpty() ? 'true' : 'false' }}" class="rounded-xl bg-emerald-700 px-6 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"><span x-text="submitting ? 'Membuat kelas...' : `Buat kelas dengan ${moduleCount} modul`"></span></button>
         </div>
     </form>
 </x-app-layout>

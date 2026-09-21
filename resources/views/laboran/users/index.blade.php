@@ -117,7 +117,7 @@
                                         <div class="flex items-center justify-center gap-2">
 
                                             {{-- Tombol Reset Password --}}
-                                            <form action="{{ route('users.reset-password', $user->id) }}" method="POST" onsubmit="return confirm('Reset password {{ $user->name }}?')">
+                                            <form action="{{ route('users.reset-password', $user->id) }}" method="POST" data-confirm-title="Reset password?" data-confirm="Password {{ $user->name }} akan direset menggunakan ID pengguna." data-confirm-button="Ya, reset" data-confirm-color="#047857">
                                                 @csrf @method('PATCH')
                                                 <button type="submit" title="Reset ke Password Default" class="p-2 text-red-500 hover:bg-red-50 rounded-xl border border-transparent hover:border-red-100 transition">
                                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
@@ -126,14 +126,14 @@
 
                                             {{-- Tombol Kelola Jabatan Aslab --}}
                                             @if(strtoupper($user->role) === 'MAHASISWA')
-                                                <form action="{{ route('users.make-aslab', $user->id) }}" method="POST" onsubmit="return confirm('Angkat {{ $user->name }} menjadi Aslab?')">
+                                                <form action="{{ route('users.make-aslab', $user->id) }}" method="POST" data-confirm-title="Angkat menjadi Aslab?" data-confirm="{{ $user->name }} akan memperoleh akses Asisten Laboratorium." data-confirm-button="Ya, angkat" data-confirm-color="#047857">
                                                     @csrf
                                                     <button type="submit" class="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-xs font-semibold tracking-normal hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100">
                                                         Angkat Aslab
                                                     </button>
                                                 </form>
                                             @elseif(strtoupper($user->role) === 'ASLAB')
-                                                <form action="{{ route('users.revoke-aslab', $user->id) }}" method="POST" onsubmit="return confirm('Cabut jabatan Aslab dari {{ $user->name }}?')">
+                                                <form action="{{ route('users.revoke-aslab', $user->id) }}" method="POST" data-confirm-title="Cabut jabatan Aslab?" data-confirm="Akses Aslab {{ $user->name }} akan dikembalikan menjadi Mahasiswa." data-confirm-button="Ya, cabut">
                                                     @csrf
                                                     <button type="submit" class="px-4 py-2 bg-amber-50 text-amber-600 rounded-xl text-xs font-semibold tracking-normal hover:bg-amber-600 hover:text-white transition-all border border-amber-100">
                                                         Jadikan Mhs

@@ -157,7 +157,7 @@
                     </a>
                     @if(auth()->user()->hasRole('Laboran'))
                         <a href="{{ route('courses.edit', $course) }}" class="block w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 text-center text-xs font-semibold text-slate-700 transition hover:bg-slate-100">Edit kelas</a>
-                        <form action="{{ route('courses.destroy', $course) }}" method="POST" onsubmit="return confirm('Hapus kelas {{ addslashes($course->course_name) }}? Modul dan daftar peserta pada kelas kosong ini akan ikut dihapus.')">
+                        <form action="{{ route('courses.destroy', $course) }}" method="POST" data-confirm-title="Hapus kelas?" data-confirm="Kelas {{ $course->course_name }} beserta modul dan daftar pesertanya akan dihapus jika belum memiliki data akademik." data-confirm-button="Ya, hapus kelas">
                             @csrf
                             @method('DELETE')
                             <button class="w-full rounded-2xl border border-red-100 bg-red-50 py-3 text-xs font-semibold text-red-700 transition hover:bg-red-100">Hapus kelas</button>

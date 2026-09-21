@@ -2,7 +2,7 @@
     <x-slot name="header_title">Verifikasi mahasiswa</x-slot>
     <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
         <p class="text-sm text-slate-600">{{ $pendingCount }} akun menunggu verifikasi. Periksa NIM dan nama sebelum menyetujui.</p>
-        <form method="POST" action="{{ route('accounts.approve-all') }}" onsubmit="return confirm('Verifikasi semua akun mahasiswa yang sedang menunggu, termasuk halaman lainnya?')">@csrf
+        <form method="POST" action="{{ route('accounts.approve-all') }}" data-confirm-title="Verifikasi semua akun?" data-confirm="Semua akun mahasiswa yang sedang menunggu, termasuk halaman lainnya, akan langsung diverifikasi." data-confirm-button="Ya, verifikasi semua" data-confirm-color="#047857">@csrf
             <button @disabled($pendingCount === 0) class="rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white disabled:opacity-40">Verifikasi semua ({{ $pendingCount }})</button>
         </form>
     </div>

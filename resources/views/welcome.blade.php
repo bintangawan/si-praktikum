@@ -18,9 +18,7 @@
             <div class="relative mx-auto flex min-h-screen max-w-7xl flex-col px-6 lg:px-10">
                 <header class="flex items-center justify-between py-6">
                     <a href="{{ url('/') }}" class="flex items-center gap-3" aria-label="SI Praktikum">
-                        <span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-500 shadow-lg shadow-emerald-500/20">
-                            <x-application-logo class="h-7 w-7 text-white" />
-                        </span>
+                        <img src="{{ asset('images/logo-uinsu.png') }}" alt="Logo UINSU" class="h-11 w-11 rounded-xl bg-white object-contain p-1 shadow-lg shadow-emerald-500/20">
                         <span class="text-lg font-semibold tracking-tight">SI-<span class="text-emerald-400">Praktikum</span></span>
                     </a>
 

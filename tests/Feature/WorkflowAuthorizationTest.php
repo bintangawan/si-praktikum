@@ -56,7 +56,9 @@ class WorkflowAuthorizationTest extends TestCase
             'course_id' => $course->id,
             'meeting_number' => 1,
             'title' => 'Pengenalan',
+            'module_drive_link' => 'https://drive.google.com/file/d/module-intro/view',
             'deadline' => now()->addDay(),
+            'published_at' => now(),
         ]);
 
         $this->actingAs($student)->post(route('submissions.store', $meeting), [

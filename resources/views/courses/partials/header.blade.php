@@ -6,16 +6,13 @@
         KEMBALI KE DASHBOARD
     </a>
 
-    @if($course->semester->is_active && in_array(strtoupper(Auth::user()->role), ['ASLAB', 'LABORAN', 'DOSEN']))
+    @if($course->semester->is_active && in_array(strtoupper(Auth::user()->role), ['ASLAB', 'LABORAN']))
     <div class="flex flex-wrap gap-3">
         <a href="{{ route('courses.modules.edit', $course) }}" class="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white">Kelola modul</a>
         @if(auth()->user()->hasRole('Laboran'))
             <a href="{{ route('courses.edit', $course) }}" class="rounded-xl border border-slate-200 px-4 py-2 text-sm">Edit kelas</a>
             <a href="{{ route('courses.staff.edit', $course) }}" class="rounded-xl border border-slate-200 px-4 py-2 text-sm">Ganti penugasan</a>
         @endif
-        <button onclick="openMeetingModal()" class="px-4 py-2 bg-slate-900 text-white text-xs font-semibold rounded-xl tracking-normal hover:bg-slate-800 transition">
-            + Tambah Pertemuan
-        </button>
     </div>
     @endif
 </div>

@@ -45,6 +45,7 @@ class SubmissionController extends Controller
 
     public function manage(Request $request, Meeting $meeting): View
     {
+        abort_unless($meeting->isPublished(), 404);
         $this->authorize('participate', $meeting->course);
         $submission = $meeting->submissions()
             ->where('student_id', $request->user()->id)
@@ -57,6 +58,7 @@ class SubmissionController extends Controller
 
     public function store(Request $request, Meeting $meeting): RedirectResponse
     {
+        abort_unless($meeting->isPublished(), 404);
         $this->authorize('participate', $meeting->course);
 
         return DB::transaction(function () use ($request, $meeting) {
@@ -207,7 +209,7 @@ class SubmissionController extends Controller
     {
         $userId = $request->user()->id;
         $archived = $request->boolean('archive');
-        $meetings = Meeting::query()->whereHas('course.semester', fn ($q) => $q->where('is_active', ! $archived))->whereHas('course.students', fn ($query) => $query->whereKey($userId))
+        $meetings = Meeting::query()->whereNotNull('published_at')->whereHas('course.semester', fn ($q) => $q->where('is_active', ! $archived))->whereHas('course.students', fn ($query) => $query->whereKey($userId))
             ->with(['course', 'submissions' => fn ($query) => $query->where('student_id', $userId)->where('is_final', false)])
             ->get();
         $finalTasks = FinalTask::query()->whereHas('course.semester', fn ($q) => $q->where('is_active', ! $archived))->whereHas('course.students', fn ($query) => $query->whereKey($userId))

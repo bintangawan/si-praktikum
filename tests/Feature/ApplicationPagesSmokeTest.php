@@ -140,7 +140,9 @@ class ApplicationPagesSmokeTest extends TestCase
             'meeting_number' => 1,
             'title' => 'Pengenalan Praktikum',
             'description' => 'Pertemuan pengenalan.',
+            'module_drive_link' => 'https://drive.google.com/file/d/smoke-module/view',
             'deadline' => now()->addDay(),
+            'published_at' => now(),
         ]);
         $finalTask = FinalTask::query()->create([
             'course_id' => $course->id,

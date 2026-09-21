@@ -53,9 +53,6 @@ Route::middleware(['auth', 'password.changed', 'account.approved', 'course.archi
     });
 
     Route::middleware('role:Aslab,Laboran,Dosen')->group(function () {
-        Route::get('courses/{course}/modules/edit', [ModuleEditorController::class, 'edit'])->name('courses.modules.edit');
-        Route::post('courses/{course}/modules', [ModuleEditorController::class, 'store'])->name('courses.modules.store');
-        Route::post('courses/{course}/meetings', [MeetingController::class, 'store'])->name('meetings.store');
         Route::put('meetings/{meeting}', [MeetingController::class, 'update'])->name('meetings.update');
         Route::put('meetings/{meeting}/deadline', [SubmissionController::class, 'updateDeadline'])->name('meetings.update-deadline');
         Route::get('meetings/{meeting}/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
@@ -76,6 +73,8 @@ Route::middleware(['auth', 'password.changed', 'account.approved', 'course.archi
     });
 
     Route::middleware('role:Aslab,Laboran')->group(function () {
+        Route::get('courses/{course}/modules/edit', [ModuleEditorController::class, 'edit'])->name('courses.modules.edit');
+        Route::put('courses/{course}/modules', [ModuleEditorController::class, 'update'])->name('courses.modules.update');
         Route::get('account-approvals', [AccountApprovalController::class, 'index'])->name('accounts.approvals');
         Route::post('account-approvals/all', [AccountApprovalController::class, 'approveAll'])->name('accounts.approve-all');
         Route::post('account-approvals/{user}', [AccountApprovalController::class, 'approve'])->name('accounts.approve');

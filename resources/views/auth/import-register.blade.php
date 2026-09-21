@@ -15,12 +15,6 @@
                     </div>
                     <hr class="mb-6">
 
-                    @if (session('success'))
-                        <div class="mb-4 border-l-4 border-emerald-500 bg-emerald-50 p-4 text-emerald-700">
-                            {{ session('success') }}
-                        </div>
-                    @endif
-
                     <form id="importForm" action="{{ route('user.import') }}" method="POST" enctype="multipart/form-data">
                         @csrf
                         <div class="mb-4">

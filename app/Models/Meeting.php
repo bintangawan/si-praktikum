@@ -13,11 +13,15 @@ class Meeting extends Model
         'description',
         'module_drive_link',
         'deadline',
+        'published_at',
     ];
 
     protected function casts(): array
     {
-        return ['deadline' => 'datetime'];
+        return [
+            'deadline' => 'datetime',
+            'published_at' => 'datetime',
+        ];
     }
 
     // Relasi: Pertemuan milik sebuah Kelas
@@ -36,5 +40,10 @@ class Meeting extends Model
     public function submissions()
     {
         return $this->hasMany(Submission::class);
+    }
+
+    public function isPublished(): bool
+    {
+        return $this->published_at !== null;
     }
 }

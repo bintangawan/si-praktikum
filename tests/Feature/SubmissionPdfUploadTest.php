@@ -21,7 +21,7 @@ class SubmissionPdfUploadTest extends TestCase
     {
         Storage::fake('local');
         [$course, $student, $aslab] = $this->courseFixture();
-        $meeting = Meeting::create(['course_id' => $course->id, 'meeting_number' => 1, 'title' => 'Modul 1', 'deadline' => now()->addDay()]);
+        $meeting = Meeting::create(['course_id' => $course->id, 'meeting_number' => 1, 'title' => 'Modul 1', 'module_drive_link' => 'https://drive.google.com/file/d/module-1/view', 'deadline' => now()->addDay(), 'published_at' => now()]);
         $this->actingAs($student)->get(route('mahasiswa.submissions.manage', $meeting))
             ->assertOk()->assertSee('name="submission_link"', false)->assertDontSee('name="submission_file"', false);
         $this->post(route('submissions.store', $meeting), ['submission_link' => 'https://drive.google.com/file/d/report-v1/view'])
@@ -36,7 +36,7 @@ class SubmissionPdfUploadTest extends TestCase
     {
         Storage::fake('local');
         [$course, $student] = $this->courseFixture();
-        $meeting = Meeting::create(['course_id' => $course->id, 'meeting_number' => 1, 'title' => 'Modul 1']);
+        $meeting = Meeting::create(['course_id' => $course->id, 'meeting_number' => 1, 'title' => 'Modul 1', 'module_drive_link' => 'https://drive.google.com/file/d/module-1/view', 'published_at' => now()]);
         $finalTask = FinalTask::create(['course_id' => $course->id, 'description' => 'Final']);
         foreach ([route('submissions.store', $meeting), route('final-tasks.submit', $finalTask)] as $url) {
             $this->actingAs($student)->post($url, ['submission_file' => $this->pdf('laprak.pdf'), 'submission_link' => 'https://drive.google.com/file/d/report-v1/view'])

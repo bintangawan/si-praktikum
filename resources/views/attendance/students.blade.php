@@ -157,11 +157,10 @@
                                 
                                 @if(strtoupper(auth()->user()->role) === 'LABORAN')
                                 <td class="px-8 py-5 text-center whitespace-nowrap">
-                                    <form action="{{ route('courses.remove-student', [$course, $student]) }}" method="POST">
+                                    <form action="{{ route('courses.remove-student', [$course, $student]) }}" method="POST" data-confirm-title="Keluarkan mahasiswa?" data-confirm="{{ $student->name }} akan dikeluarkan dari kelas ini jika belum memiliki presensi atau pengumpulan." data-confirm-button="Ya, keluarkan">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" 
-                                                onclick="return confirm('Apakah Anda yakin ingin MENGELUARKAN {{ $student->name }} dari kelas ini? Semua data terkait mahasiswa ini di kelas ini mungkin terpengaruh.')" 
+                                        <button type="submit"
                                                 class="inline-flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 hover:bg-red-600 hover:text-white rounded-xl text-xs font-semibold tracking-normal transition-all shadow-sm">
                                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7a4 4 0 11-8 0 4 4 0 018 0zM9 14a6 6 0 00-6 6v1h12v-1a6 6 0 00-6-6zM21 12h-6"></path></svg>
                                             Keluarkan

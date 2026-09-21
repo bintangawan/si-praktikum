@@ -23,6 +23,7 @@ class PerformanceRegressionTest extends TestCase
             'meeting_number' => 1,
             'title' => 'Modul performa',
             'module_drive_link' => 'https://drive.google.com/file/d/performance/view',
+            'published_at' => now(),
         ]);
         $student = User::factory()->create(['role' => 'Mahasiswa']);
         $submission = Submission::query()->create([

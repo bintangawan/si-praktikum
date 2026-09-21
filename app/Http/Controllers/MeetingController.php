@@ -8,7 +8,6 @@ use App\Models\Meeting;
 use App\Services\DriveLink;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class MeetingController extends Controller
@@ -47,30 +46,20 @@ class MeetingController extends Controller
         return view('courses.show', compact('course'));
     }
 
-    public function store(Request $request, Course $course): RedirectResponse
-    {
-        $this->authorize('manage', $course);
-        $validated = $request->validate([
-            'meeting_number' => ['required', 'integer', 'min:1', 'max:50', Rule::unique('meetings')->where('course_id', $course->id)],
-            'title' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
-            'module_drive_link' => ['required', 'string', 'max:2048', DriveLink::rule()],
-            'deadline' => ['nullable', 'date'],
-        ]);
-
-        $course->meetings()->create($validated);
-
-        return back()->with('success', 'Pertemuan berhasil ditambahkan.');
-    }
-
     public function update(Request $request, Meeting $meeting): RedirectResponse
     {
-        $this->authorize('manage', $meeting->course);
+        $this->authorize('manageModules', $meeting->course);
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string'],
-            'module_drive_link' => ['required', 'string', 'max:2048', DriveLink::rule()],
+            'module_drive_link' => ['nullable', 'string', 'max:2048', DriveLink::rule()],
+        ], [
+            'title.required' => 'Judul modul wajib diisi.',
         ]);
+
+        $validated['module_drive_link'] = filled($validated['module_drive_link'] ?? null)
+            ? $validated['module_drive_link']
+            : null;
 
         $meeting->update($validated);
 
