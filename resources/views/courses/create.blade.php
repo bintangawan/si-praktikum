@@ -41,19 +41,19 @@
                         <label class="text-sm font-semibold text-slate-700">Laboran penanggung jawab
                             <select name="laboran_id" required class="mt-2 block w-full rounded-xl border-slate-200 bg-slate-50/70">
                                 <option value="">Pilih laboran</option>
-                                @foreach($laborans as $laboran)<option value="{{ $laboran->id }}" @selected((string) old('laboran_id', auth()->id()) === (string) $laboran->id)>{{ $laboran->name }} â€” {{ $laboran->id }}</option>@endforeach
+                                @foreach($laborans as $laboran)<option value="{{ $laboran->id }}" @selected((string) old('laboran_id', auth()->id()) === (string) $laboran->id)>{{ $laboran->name }} - {{ $laboran->id }}</option>@endforeach
                             </select>
                         </label>
                         <label class="text-sm font-semibold text-slate-700">Dosen pengampu
                             <select name="dosen_id" required class="mt-2 block w-full rounded-xl border-slate-200 bg-slate-50/70">
                                 <option value="">Pilih dosen</option>
-                                @foreach($dosens as $dosen)<option value="{{ $dosen->id }}" @selected((string) old('dosen_id') === (string) $dosen->id)>{{ $dosen->name }} — {{ $dosen->id }}</option>@endforeach
+                                @foreach($dosens as $dosen)<option value="{{ $dosen->id }}" @selected((string) old('dosen_id') === (string) $dosen->id)>{{ $dosen->name }} - {{ $dosen->id }}</option>@endforeach
                             </select>
                         </label>
                         <label class="text-sm font-semibold text-slate-700">Asisten laboratorium
                             <select name="aslab_id" required class="mt-2 block w-full rounded-xl border-slate-200 bg-slate-50/70">
                                 <option value="">Pilih asisten</option>
-                                @foreach($aslabs as $aslab)<option value="{{ $aslab->id }}" @selected((string) old('aslab_id') === (string) $aslab->id)>{{ $aslab->name }} — {{ $aslab->id }}</option>@endforeach
+                                @foreach($aslabs as $aslab)<option value="{{ $aslab->id }}" @selected((string) old('aslab_id') === (string) $aslab->id)>{{ $aslab->name }} - {{ $aslab->id }}</option>@endforeach
                             </select>
                             <span class="mt-2 block text-xs font-normal leading-5 text-slate-500">Aslab terpilih dapat mengatur judul, materi, instruksi, dan deadline modul.</span>
                         </label>
@@ -64,13 +64,13 @@
                     <div class="mb-6">
                         <p class="text-sm font-semibold text-emerald-700">Langkah 2</p>
                         <h2 class="mt-1 text-xl font-semibold text-slate-900">Tentukan jumlah modul</h2>
-                        <p class="mt-2 text-sm leading-6 text-slate-500">Jumlah modul bebas dari 1 sampai 16 dan menjadi struktur tetap kelas. Modul yang materinya belum dilengkapi akan tampil sebagai Coming Soon.</p>
+                        <p class="mt-2 text-sm leading-6 text-slate-500">Jumlah modul bebas dari 1 sampai 16 dan menjadi struktur tetap kelas. Modul yang pengumpulannya belum dibuka akan tampil sebagai Coming Soon.</p>
                     </div>
 
                     <div class="flex flex-col gap-5 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-5 sm:flex-row sm:items-center sm:justify-between">
-                        <div><p class="text-sm font-semibold text-slate-800">Jumlah kartu modul</p><p class="mt-1 text-xs leading-5 text-slate-500">Umumnya praktikum menggunakan 6–8 modul.</p></div>
+                        <div><p class="text-sm font-semibold text-slate-800">Jumlah kartu modul</p><p class="mt-1 text-xs leading-5 text-slate-500">Umumnya praktikum menggunakan 6-8 modul.</p></div>
                         <div class="flex items-center gap-3">
-                            <button type="button" @click="moduleCount = Math.max(1, moduleCount - 1)" :disabled="moduleCount <= 1" class="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-200 bg-white text-xl font-semibold text-emerald-800 disabled:opacity-40" aria-label="Kurangi jumlah modul">−</button>
+                            <button type="button" @click="moduleCount = Math.max(1, moduleCount - 1)" :disabled="moduleCount <= 1" class="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-200 bg-white text-xl font-semibold text-emerald-800 disabled:opacity-40" aria-label="Kurangi jumlah modul">&minus;</button>
                             <input name="module_count" x-model.number="moduleCount" @input="moduleCount = Math.min(16, Math.max(1, Number(moduleCount) || 1))" type="number" min="1" max="16" required class="h-12 w-20 rounded-xl border-emerald-200 bg-white text-center text-lg font-bold text-emerald-800">
                             <button type="button" @click="moduleCount = Math.min(16, moduleCount + 1)" :disabled="moduleCount >= 16" class="flex h-11 w-11 items-center justify-center rounded-xl border border-emerald-200 bg-white text-xl font-semibold text-emerald-800 disabled:opacity-40" aria-label="Tambah jumlah modul">+</button>
                         </div>
