@@ -48,32 +48,61 @@ class UserController extends Controller
     {
         $user->update(['password' => Hash::make($user->id), 'is_first_login' => true]);
 
-        return back()->with('success', "Password {$user->name} berhasil direset menggunakan ID.");
+        return back()->with('success', __('Password :name berhasil direset menggunakan ID.', ['name' => $user->name]));
+    }
+
+    public function updateRole(Request $request, User $user): RedirectResponse
+    {
+        $validated = $request->validate([
+            'role' => ['required', Rule::in([UserRole::MAHASISWA->value, UserRole::ASLAB->value, UserRole::LABORAN->value])],
+        ]);
+        $targetRole = UserRole::from($validated['role']);
+
+        if ($user->hasRole($targetRole)) {
+            return back()->with('error', __('Role pengguna sudah menggunakan jabatan tersebut.'));
+        }
+
+        if ($user->hasRole(UserRole::MAHASISWA)) {
+            if (! $user->approved_at) {
+                return back()->with('error', __('Akun mahasiswa harus diverifikasi sebelum dapat diangkat.'));
+            }
+
+            if (! in_array($targetRole, [UserRole::ASLAB, UserRole::LABORAN], true)) {
+                return back()->with('error', __('Mahasiswa hanya dapat diangkat menjadi Aslab atau Laboran.'));
+            }
+
+            $user->update(['role' => $targetRole->value]);
+
+            return back()->with('success', __(':name berhasil diangkat menjadi :role.', [
+                'name' => $user->name,
+                'role' => __($targetRole->value),
+            ]));
+        }
+
+        if ($user->hasRole(UserRole::ASLAB) && $targetRole === UserRole::MAHASISWA) {
+            if (Course::query()->where('aslab_id', $user->id)->whereHas('semester', fn ($q) => $q->where('is_active', true))->exists()) {
+                return back()->with('error', __('Aslab masih ditugaskan pada kelas aktif. Ganti penugasan terlebih dahulu.'));
+            }
+
+            $user->update(['role' => UserRole::MAHASISWA->value]);
+
+            return back()->with('success', __('Jabatan Aslab :name telah dicabut.', ['name' => $user->name]));
+        }
+
+        return back()->with('error', __('Perubahan jabatan ini tidak diizinkan.'));
     }
 
     public function makeAslab(Request $request, User $user): RedirectResponse
     {
-        if (! $user->hasRole(UserRole::MAHASISWA) || ! $user->approved_at) {
-            return back()->with('error', 'Hanya mahasiswa yang dapat diangkat menjadi Aslab.');
-        }
+        $request->merge(['role' => UserRole::ASLAB->value]);
 
-        $user->update(['role' => UserRole::ASLAB->value]);
-
-        return back()->with('success', "{$user->name} berhasil diangkat menjadi Aslab.");
+        return $this->updateRole($request, $user);
     }
 
     public function revokeAslab(Request $request, User $user): RedirectResponse
     {
-        if (! $user->hasRole(UserRole::ASLAB)) {
-            return back()->with('error', 'Pengguna tersebut bukan Aslab.');
-        }
+        $request->merge(['role' => UserRole::MAHASISWA->value]);
 
-        if (Course::query()->where('aslab_id', $user->id)->whereHas('semester', fn ($q) => $q->where('is_active', true))->exists()) {
-            return back()->with('error', 'Aslab masih ditugaskan pada kelas. Ganti penugasan terlebih dahulu.');
-        }
-
-        $user->update(['role' => UserRole::MAHASISWA->value]);
-
-        return back()->with('success', "Jabatan Aslab {$user->name} telah dicabut.");
+        return $this->updateRole($request, $user);
     }
 }

@@ -112,6 +112,11 @@ class AdministrativeWorkflowTest extends TestCase
             ->assertSessionHas('success');
         $this->assertSame('Mahasiswa', $student->fresh()->role);
 
+        $this->actingAs($laboran)->post(route('users.update-role', $student), ['role' => 'Laboran'])
+            ->assertRedirect()
+            ->assertSessionHas('success', "{$student->name} berhasil diangkat menjadi Laboran.");
+        $this->assertSame('Laboran', $student->fresh()->role);
+
         $this->actingAs($laboran)->patch(route('users.reset-password', $student))
             ->assertRedirect()
             ->assertSessionHas('success');
@@ -123,6 +128,22 @@ class AdministrativeWorkflowTest extends TestCase
             ->assertRedirect()
             ->assertSessionHas('success');
         $this->assertDatabaseMissing('tutorials', ['id' => $tutorial->id]);
+    }
+
+    public function test_language_choice_persists_between_pages(): void
+    {
+        $laboran = User::factory()->create(['role' => 'Laboran']);
+
+        $this->actingAs($laboran)
+            ->from(route('users.index'))
+            ->post(route('locale.update'), ['locale' => 'en'])
+            ->assertRedirect(route('users.index'));
+
+        $this->get(route('users.index'))
+            ->assertOk()
+            ->assertSee('<html lang="en">', false);
+
+        $this->assertSame('Lab Assistant', __('Aslab'));
     }
 
     /** @return array{User, User, User, Course} */

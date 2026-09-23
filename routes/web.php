@@ -8,6 +8,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinalTaskController;
 use App\Http\Controllers\FirstLoginController;
 use App\Http\Controllers\MeetingController;
+use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\ModuleEditorController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SemesterController;
@@ -19,6 +20,7 @@ use App\Http\Controllers\UserImportController;
 use Illuminate\Support\Facades\Route;
 
 Route::view('/', 'welcome');
+Route::post('locale', [LocaleController::class, 'update'])->name('locale.update');
 Route::get('account/pending', [AccountApprovalController::class, 'pending'])->middleware('auth')->name('account.pending');
 
 Route::middleware('auth')->group(function () {
@@ -94,6 +96,7 @@ Route::middleware(['auth', 'password.changed', 'account.approved', 'course.archi
         Route::post('import-users', [UserImportController::class, 'import'])->name('user.import');
         Route::get('users-management', [UserController::class, 'index'])->name('users.index');
         Route::patch('users-management/{user}/reset', [UserController::class, 'resetPassword'])->name('users.reset-password');
+        Route::post('users-management/{user}/role', [UserController::class, 'updateRole'])->name('users.update-role');
         Route::post('users/{user}/make-aslab', [UserController::class, 'makeAslab'])->name('users.make-aslab');
         Route::post('users/{user}/revoke-aslab', [UserController::class, 'revokeAslab'])->name('users.revoke-aslab');
         Route::resource('semesters', SemesterController::class)->except(['create', 'show', 'edit']);

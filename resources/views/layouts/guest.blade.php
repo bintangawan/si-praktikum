@@ -12,8 +12,16 @@
 
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="font-sans text-slate-900 antialiased">
+    <body data-locale="{{ app()->getLocale() }}" class="font-sans text-slate-900 antialiased">
         <main class="relative min-h-screen min-h-[100dvh] overflow-hidden bg-slate-50">
+            <form action="{{ route('locale.update') }}" method="POST" class="absolute right-4 top-4 z-20 sm:right-8 sm:top-8">
+                @csrf
+                <label class="sr-only" for="guest-locale-switch">Pilih bahasa</label>
+                <select id="guest-locale-switch" name="locale" onchange="this.form.submit()" class="rounded-xl border-white/70 bg-white/90 py-2 pl-3 pr-8 text-xs font-semibold text-slate-700 shadow-lg shadow-slate-900/5 backdrop-blur focus:border-emerald-500 focus:ring-emerald-500">
+                    <option value="id" @selected(app()->getLocale() === 'id')>Indonesia</option>
+                    <option value="en" @selected(app()->getLocale() === 'en')>English</option>
+                </select>
+            </form>
             <div class="pointer-events-none absolute -left-28 -top-28 h-72 w-72 rounded-full bg-emerald-200/50 blur-3xl"></div>
             <div class="pointer-events-none absolute -bottom-36 -right-24 h-96 w-96 rounded-full bg-emerald-200/40 blur-3xl"></div>
 

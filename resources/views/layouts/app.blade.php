@@ -19,6 +19,7 @@
      Animasi (transition-all) hanya akan aktif JIKA `ready` bernilai true.
 --}}
 <body @keydown.escape.window="sidebarOpen = false" class="font-sans antialiased bg-gray-50 text-gray-900"
+      data-locale="{{ app()->getLocale() }}"
       x-data="{
         sidebarOpen: window.innerWidth >= 1024 && localStorage.getItem('sidebarState') !== 'false',
         ready: false
@@ -39,8 +40,17 @@
                 <span class="text-xl font-semibold tracking-tighter text-emerald-900">SI-<span class="text-emerald-500">Praktikum</span></span>
             </div>
 
-            {{-- Kanan: Profile Dropdown --}}
-            <div class="relative flex-shrink-0" x-data="{ open: false }">
+            {{-- Bahasa dan menu profil --}}
+            <div class="flex flex-shrink-0 items-center gap-2 sm:gap-3">
+                <form action="{{ route('locale.update') }}" method="POST" class="shrink-0">
+                    @csrf
+                    <label class="sr-only" for="locale-switch">Pilih bahasa</label>
+                    <select id="locale-switch" name="locale" onchange="this.form.submit()" class="rounded-xl border-slate-200 bg-white py-2 pl-3 pr-8 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-emerald-300 focus:border-emerald-500 focus:ring-emerald-500">
+                        <option value="id" @selected(app()->getLocale() === 'id')>Indonesia</option>
+                        <option value="en" @selected(app()->getLocale() === 'en')>English</option>
+                    </select>
+                </form>
+                <div class="relative flex-shrink-0" x-data="{ open: false }">
                 <button @click="open = !open" class="flex items-center space-x-3 focus:outline-none group p-1.5 hover:bg-gray-50 rounded-full transition max-w-[200px] sm:max-w-[300px]">
                     <div class="text-right hidden sm:block min-w-0 flex-1">
                         <p class="text-sm font-bold text-gray-800 group-hover:text-emerald-600 transition truncate" title="{{ Auth::user()->name }}">
@@ -83,6 +93,7 @@
                             Logout
                         </button>
                     </form>
+                </div>
                 </div>
             </div>
         </header>

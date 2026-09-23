@@ -9,7 +9,7 @@
         <link href="https://fonts.bunny.net/css?family=poppins:400,500,600,700,800&display=swap" rel="stylesheet">
         @vite(['resources/css/app.css', 'resources/js/app.js'])
     </head>
-    <body class="min-h-screen bg-slate-950 font-sans text-white antialiased">
+    <body data-locale="{{ app()->getLocale() }}" class="min-h-screen bg-slate-950 font-sans text-white antialiased">
         <div class="relative min-h-screen overflow-hidden">
             <div class="absolute inset-0 bg-slate-950"></div>
             <div class="absolute -top-32 -right-24 h-96 w-96 rounded-full bg-emerald-500/20 blur-3xl"></div>
@@ -23,6 +23,14 @@
                     </a>
 
                     <nav class="flex items-center gap-2" aria-label="Navigasi akun">
+                        <form action="{{ route('locale.update') }}" method="POST" class="mr-1">
+                            @csrf
+                            <label class="sr-only" for="welcome-locale-switch">Pilih bahasa</label>
+                            <select id="welcome-locale-switch" name="locale" onchange="this.form.submit()" class="rounded-xl border border-white/20 bg-white/10 py-2 pl-3 pr-8 text-xs font-semibold text-white backdrop-blur focus:border-emerald-300 focus:ring-emerald-300">
+                                <option class="text-slate-900" value="id" @selected(app()->getLocale() === 'id')>🇮🇩 ID</option>
+                                <option class="text-slate-900" value="en" @selected(app()->getLocale() === 'en')>🇬🇧 EN</option>
+                            </select>
+                        </form>
                         @auth
                             <a href="{{ route('dashboard') }}" class="rounded-xl bg-white px-5 py-2.5 text-xs font-semibold tracking-normal text-slate-900 transition hover:bg-emerald-50">
                                 Dashboard
