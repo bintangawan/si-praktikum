@@ -6,7 +6,7 @@
     <div class="max-w-[95rem] mx-auto py-8 px-4">
         
         {{-- Form Join Khusus Mahasiswa --}}
-        @if(strtoupper(auth()->user()->role) === 'MAHASISWA')
+        @if(strtoupper(auth()->user()->role) === 'MAHASISWA' && $activeSemester)
         <div class="mb-8 bg-emerald-900 rounded-[2rem] p-8 text-white shadow-xl shadow-emerald-100 relative overflow-hidden">
             <div class="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -mr-20 -mt-20 blur-3xl pointer-events-none"></div>
             <div class="md:flex items-center justify-between relative z-10">
@@ -31,25 +31,15 @@
         </div>
         @endif
 
-        {{-- JIKA TIDAK ADA SEMESTER AKTIF --}}
+        {{-- EMPTY STATE: BELUM ADA KELAS YANG BISA DITAMPILKAN --}}
         @if(!$activeSemester)
-        @if(strtoupper(auth()->user()->role) === 'DOSEN')
-        <div class="rounded-2xl border border-emerald-100 bg-white p-10 text-center shadow-sm sm:p-16">
+        <div class="rounded-2xl border border-emerald-100 bg-white px-5 py-12 text-center shadow-sm sm:py-16">
             <div class="mb-4 inline-flex rounded-[2rem] bg-emerald-50 p-6 text-emerald-600">
                 <svg class="h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5s3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18s-3.332.477-4.5 1.253"></path></svg>
             </div>
-            <h3 class="mb-2 text-xl font-semibold tracking-tight text-slate-800">Belum ada kelas yang ditugaskan.</h3>
-            <p class="text-sm font-medium text-slate-500">Hubungi Laboran agar akun Anda ditambahkan sebagai dosen pada kelas praktikum.</p>
+            <h3 class="mb-2 text-xl font-semibold tracking-tight text-slate-800">Belum Ada Kelas</h3>
+            <p class="mx-auto max-w-md text-sm font-medium leading-6 text-slate-500">Belum ada kelas praktikum untuk ditampilkan saat ini.</p>
         </div>
-        @else
-        <div class="bg-red-50 rounded-2xl shadow-sm border border-red-100 p-16 text-center">
-            <div class="inline-flex p-6 bg-red-100 rounded-[2rem] text-red-400 mb-4">
-                <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-            </div>
-            <h3 class="text-xl font-semibold text-red-800 tracking-tight mb-2">Sistem Sedang Ditangguhkan</h3>
-            <p class="text-xs font-bold text-red-400 tracking-normal">Tidak ada semester akademik yang sedang aktif saat ini. Harap hubungi administrator.</p>
-        </div>
-        @endif
         @else
 
         {{-- Header Konten --}}
@@ -183,7 +173,7 @@
                     </svg>
                 </div>
                 <h3 class="text-xl font-semibold text-gray-700 tracking-tight mb-2">Belum Ada Kelas</h3>
-                <p class="text-xs font-bold text-gray-400 tracking-normal max-w-md">Tidak ada kelas praktikum yang terdaftar atau diikuti pada semester aktif ini.</p>
+                <p class="mx-auto max-w-md text-sm font-medium leading-6 text-gray-500">Belum ada kelas praktikum yang tersedia untuk akun Anda pada semester aktif ini.</p>
             </div>
             @endforelse
         </div>

@@ -15,6 +15,39 @@ class CourseManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_course_page_uses_consistent_empty_states_for_every_role(): void
+    {
+        $roles = ['Mahasiswa', 'Dosen', 'Aslab', 'Laboran'];
+        $noActiveSemesterMessage = 'Belum ada kelas praktikum untuk ditampilkan saat ini.';
+        $activeSemesterMessage = 'Belum ada kelas praktikum yang tersedia untuk akun Anda pada semester aktif ini.';
+
+        foreach ($roles as $role) {
+            $user = User::factory()->create(['role' => $role]);
+
+            $response = $this->actingAs($user)->get(route('courses.index'));
+            $response->assertOk()
+                ->assertSee('Belum Ada Kelas')
+                ->assertSee($noActiveSemesterMessage)
+                ->assertDontSee('Sistem Sedang Ditangguhkan');
+
+            if ($role === 'Mahasiswa') {
+                $response->assertDontSee('id="enrollment_code"', false);
+            }
+        }
+
+        Semester::query()->create(['name' => 'Semester Kosong', 'is_active' => true]);
+
+        foreach ($roles as $role) {
+            $user = User::factory()->create(['role' => $role]);
+
+            $this->actingAs($user)->get(route('courses.index'))
+                ->assertOk()
+                ->assertSee('Belum Ada Kelas')
+                ->assertSee($activeSemesterMessage)
+                ->assertDontSee('Sistem Sedang Ditangguhkan');
+        }
+    }
+
     public function test_dosen_dashboard_lists_all_and_only_courses_assigned_to_that_lecturer(): void
     {
         [$laboran, $dosen, $aslab, $activeSemester] = $this->staffFixture();
