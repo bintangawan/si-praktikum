@@ -46,8 +46,8 @@
                     @csrf
                     <label class="sr-only" for="locale-switch">Pilih bahasa</label>
                     <select id="locale-switch" name="locale" onchange="this.form.submit()" class="rounded-xl border-slate-200 bg-white py-2 pl-3 pr-8 text-xs font-semibold text-slate-700 shadow-sm transition hover:border-emerald-300 focus:border-emerald-500 focus:ring-emerald-500">
-                        <option value="id" @selected(app()->getLocale() === 'id')>Indonesia</option>
-                        <option value="en" @selected(app()->getLocale() === 'en')>English</option>
+                        <option value="id" @selected(app()->getLocale() === 'id')>ID</option>
+                        <option value="en" @selected(app()->getLocale() === 'en')>EN</option>
                     </select>
                 </form>
                 <div class="relative flex-shrink-0" x-data="{ open: false }">
