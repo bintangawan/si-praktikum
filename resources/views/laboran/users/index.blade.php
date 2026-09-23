@@ -10,7 +10,7 @@
                 </div>
                 <span class="inline-flex w-fit items-center gap-2 rounded-full border border-emerald-200 bg-white/80 px-3 py-1.5 text-xs font-semibold text-emerald-800">
                     <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
-                    {{ $users instanceof \Illuminate\Pagination\LengthAwarePaginator ? $users->total() : $users->count() }} pengguna
+                    {{ $users->total() }} pengguna
                 </span>
             </div>
         </section>
@@ -28,7 +28,7 @@
                     <div>
                         <label for="user-limit" class="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-500">Tampilkan</label>
                         <select id="user-limit" name="limit" class="block w-full rounded-xl border-slate-200 bg-slate-50 py-3 text-sm focus:border-emerald-500 focus:ring-emerald-500">
-                        @foreach(['10' => '10', '25' => '25', '50' => '50', '100' => '100', 'all' => 'Semua'] as $limit => $label)
+                        @foreach(['10' => '10', '25' => '25', '50' => '50', '100' => '100'] as $limit => $label)
                                 <option value="{{ $limit }}" @selected(request('limit', '10') === $limit)>{{ $label }}</option>
                             @endforeach
                         </select>
@@ -146,7 +146,7 @@
                     </tbody>
                 </table>
             </div>
-            @if(request('limit') !== 'all' && $users instanceof \Illuminate\Pagination\LengthAwarePaginator)
+            @if($users->hasPages())
                 <div class="border-t border-slate-100 bg-slate-50/50 px-5 py-4 sm:px-6">{{ $users->links() }}</div>
             @endif
         </section>

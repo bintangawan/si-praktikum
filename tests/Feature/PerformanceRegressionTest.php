@@ -69,6 +69,46 @@ class PerformanceRegressionTest extends TestCase
         $this->assertSame(13, $courses->total());
     }
 
+    public function test_user_management_is_paginated_and_keeps_filters_available_on_other_pages(): void
+    {
+        $laboran = User::factory()->create(['role' => 'Laboran']);
+        User::factory()->count(12)->create([
+            'role' => 'Mahasiswa',
+            'name' => 'Paged User',
+        ]);
+
+        $response = $this->actingAs($laboran)->get(route('users.index', [
+            'roles' => ['Mahasiswa'],
+            'search' => 'Paged User',
+            'limit' => '10',
+        ]));
+        $response->assertOk()->assertSee('aria-label="Navigasi halaman"', false);
+
+        $users = $response->viewData('users');
+        $this->assertInstanceOf(LengthAwarePaginator::class, $users);
+        $this->assertSame(10, $users->perPage());
+        $this->assertSame(12, $users->total());
+
+        parse_str((string) parse_url($users->url(2), PHP_URL_QUERY), $pageTwoQuery);
+        $this->assertSame(['Mahasiswa'], $pageTwoQuery['roles']);
+        $this->assertSame('Paged User', $pageTwoQuery['search']);
+        $this->assertSame('10', $pageTwoQuery['limit']);
+
+        $hundredPerPage = $this->actingAs($laboran)->get(route('users.index', [
+            'roles' => ['Mahasiswa'],
+            'search' => 'Paged User',
+            'limit' => '100',
+        ]));
+        $hundredPerPage->assertOk()->assertDontSee('aria-label="Navigasi halaman"', false);
+        $largerPage = $hundredPerPage->viewData('users');
+        $this->assertInstanceOf(LengthAwarePaginator::class, $largerPage);
+        $this->assertSame(100, $largerPage->perPage());
+        $this->assertSame(12, $largerPage->total());
+
+        $this->actingAs($laboran)->get(route('users.index', ['limit' => 'all']))
+            ->assertSessionHasErrors('limit');
+    }
+
     private function fixture(): array
     {
         return [

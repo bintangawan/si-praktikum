@@ -30,14 +30,19 @@ class AccountApprovalTest extends TestCase
         $this->post(route('accounts.approve-all'))->assertRedirect(route('account.pending'));
     }
 
-    public function test_laboran_and_aslab_can_approve_individually_and_all_pages_idempotently(): void
+    public function test_laboran_and_aslab_can_approve_individual_and_all_pending_accounts_idempotently(): void
     {
         foreach (['Laboran', 'Aslab'] as $role) {
             $staff = User::factory()->create(['role' => $role, 'email_verified_at' => null]);
             $student = User::factory()->create(['approved_at' => null, 'email_verified_at' => null]);
             $others = User::factory()->count(27)->create(['approved_at' => null]);
             $pendingDosen = User::factory()->create(['role' => 'Dosen', 'approved_at' => null]);
-            $this->actingAs($staff)->get(route('accounts.approvals'))->assertOk()->assertSee('Verifikasi semua');
+            $approvalPage = $this->actingAs($staff)->get(route('accounts.approvals'));
+            $approvalPage->assertOk()
+                ->assertSee('Verifikasi semua')
+                ->assertSee($others->last()->id)
+                ->assertDontSee('Navigasi halaman');
+            $this->assertCount(28, $approvalPage->viewData('students'));
             $this->post(route('accounts.approve', $student))->assertRedirect();
             $approvedAt = $student->fresh()->approved_at;
             $this->assertSame($staff->id, $student->fresh()->approved_by);

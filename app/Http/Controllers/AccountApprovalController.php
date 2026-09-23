@@ -18,7 +18,7 @@ class AccountApprovalController extends Controller
     public function index()
     {
         return view('accounts.approvals', [
-            'students' => User::where('role', 'Mahasiswa')->whereNull('approved_at')->orderBy('created_at')->paginate(25),
+            'students' => User::where('role', 'Mahasiswa')->whereNull('approved_at')->orderBy('created_at')->get(),
             'pendingCount' => User::where('role', 'Mahasiswa')->whereNull('approved_at')->count(),
         ]);
     }

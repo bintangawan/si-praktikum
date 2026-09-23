@@ -19,7 +19,7 @@ class UserController extends Controller
             'roles' => ['nullable', 'array'],
             'roles.*' => [Rule::enum(UserRole::class)],
             'search' => ['nullable', 'string', 'max:255'],
-            'limit' => ['nullable', Rule::in(['10', '25', '50', '100', 'all'])],
+            'limit' => ['nullable', Rule::in(['10', '25', '50', '100'])],
         ]);
         $selectedRoles = $validated['roles'] ?? [];
         $queryRoles = $selectedRoles;
@@ -39,7 +39,7 @@ class UserController extends Controller
             ->orderBy('name');
 
         $limit = $validated['limit'] ?? '10';
-        $users = $limit === 'all' ? $query->get() : $query->paginate((int) $limit)->withQueryString();
+        $users = $query->paginate((int) $limit)->withQueryString();
 
         return view('laboran.users.index', compact('users', 'selectedRoles'));
     }
