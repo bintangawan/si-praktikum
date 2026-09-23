@@ -59,7 +59,7 @@
 
                 <main class="grid flex-1 items-center gap-10 py-10 sm:gap-14 sm:py-14 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:py-20">
                     <section class="min-w-0">
-                        <div class="mb-5 inline-flex max-w-full items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3.5 py-2 text-[11px] font-semibold leading-5 text-emerald-300 sm:mb-6 sm:px-4 sm:text-xs">
+                        <div class="mb-5 inline-flex max-w-full items-center gap-2 rounded-full border border-emerald-400/20 bg-emerald-400/10 px-3.5 py-2 text-xs font-semibold leading-5 text-emerald-300 sm:mb-6 sm:px-4">
                             Pengelolaan Praktikum Terpadu
                         </div>
                         <h1 class="max-w-3xl text-3xl font-semibold leading-[1.15] tracking-tight sm:text-5xl lg:text-6xl">

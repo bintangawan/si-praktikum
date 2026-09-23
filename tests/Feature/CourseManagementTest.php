@@ -15,6 +15,54 @@ class CourseManagementTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_dosen_dashboard_lists_all_and_only_courses_assigned_to_that_lecturer(): void
+    {
+        [$laboran, $dosen, $aslab, $activeSemester] = $this->staffFixture();
+        $archivedSemester = Semester::query()->create(['name' => 'Genap 2025/2026', 'is_active' => false]);
+
+        $activeCourse = Course::query()->create([
+            'semester_id' => $activeSemester->id,
+            'course_name' => 'Algoritma Aktif',
+            'class_group' => 'A',
+            'target_semester' => 3,
+            'dosen_id' => $dosen->id,
+            'laboran_id' => $laboran->id,
+            'aslab_id' => $aslab->id,
+            'enrollment_code' => 'DOSENACT01',
+        ]);
+        $archivedCourse = Course::query()->create([
+            'semester_id' => $archivedSemester->id,
+            'course_name' => 'Basis Data Arsip',
+            'class_group' => 'B',
+            'target_semester' => 3,
+            'dosen_id' => $dosen->id,
+            'laboran_id' => $laboran->id,
+            'aslab_id' => $aslab->id,
+            'enrollment_code' => 'DOSENARC01',
+        ]);
+
+        $otherDosen = User::factory()->create(['role' => 'Dosen']);
+        $otherCourse = Course::query()->create([
+            'semester_id' => $activeSemester->id,
+            'course_name' => 'Kelas Dosen Lain',
+            'class_group' => 'C',
+            'target_semester' => 3,
+            'dosen_id' => $otherDosen->id,
+            'laboran_id' => $laboran->id,
+            'aslab_id' => $aslab->id,
+            'enrollment_code' => 'DOSENOTHER01',
+        ]);
+
+        $this->actingAs($dosen)->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee($activeCourse->course_name)
+            ->assertSee($archivedCourse->course_name)
+            ->assertDontSee($otherCourse->course_name)
+            ->assertSee(route('courses.show', $activeCourse), false)
+            ->assertSee(route('courses.students', $activeCourse), false)
+            ->assertSee(route('attendance.report', $activeCourse), false);
+    }
+
     public function test_laboran_can_create_a_course_and_immediately_see_it_in_their_course_list(): void
     {
         [$laboran, $dosen, $aslab, $semester] = $this->staffFixture();
