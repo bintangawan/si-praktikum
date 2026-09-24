@@ -20,7 +20,7 @@
 
         <section class="rounded-2xl border border-sky-100 bg-sky-50/70 p-5 text-sm leading-6 text-sky-950">
             <p class="font-semibold">Perhitungan nilai</p>
-            <p class="mt-1">Nilai laporan praktikum adalah rata-rata nilai Aslab dan Laboran di setiap modul, lalu dirata-ratakan untuk seluruh modul. Nilai akhir adalah rata-rata nilai Laporan Praktikum, UTS, dan UAS.</p>
+            <p class="mt-1">Nilai setiap modul adalah 80% nilai Aslab dan 20% nilai Laboran. Nilai Laporan Praktikum adalah rata-rata nilai seluruh modul. Nilai akhir adalah rata-rata nilai Laporan Praktikum, UTS, dan UAS.</p>
             <p class="mt-1 text-xs text-sky-800">Predikat: A ≥ 86 · B ≥ 75 · C ≥ 60 · D ≥ 40 · E di bawah 40 (nilai maksimal 100).</p>
         </section>
 
@@ -53,7 +53,7 @@
                                                 <div class="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 text-xs">
                                                     <span class="min-w-0 truncate text-slate-700">Modul {{ $module['meeting_number'] }} · {{ $module['meeting_title'] }}</span>
                                                     @if($module['has_submission'])
-                                                        <span class="shrink-0 text-right text-slate-600">Aslab {{ $module['aslab_score'] ?? '—' }} · Lab {{ $module['laboran_score'] ?? '—' }}<br><strong class="text-emerald-700">Rata-rata {{ $module['score'] === null ? '—' : number_format($module['score'], 2, ',', '.') }}</strong></span>
+                                                        <span class="shrink-0 text-right text-slate-600">Aslab {{ $module['aslab_score'] ?? '—' }} · Lab {{ $module['laboran_score'] ?? '—' }}<br><strong class="text-emerald-700">Nilai modul {{ $module['score'] === null ? '—' : number_format($module['score'], 2, ',', '.') }}</strong></span>
                                                     @else
                                                         <span class="shrink-0 text-amber-700">Belum mengumpulkan</span>
                                                     @endif

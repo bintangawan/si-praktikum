@@ -143,7 +143,7 @@
                                 $sub = $module->submissions->firstWhere('student_id', (string) $student->id);
                                 $aslabScore = $sub && $sub->aslab_score !== null ? (float) $sub->aslab_score : null;
                                 $laboranScore = $sub && $sub->laboran_score !== null ? (float) $sub->laboran_score : null;
-                                $moduleReportScore = $aslabScore !== null && $laboranScore !== null ? round(($aslabScore + $laboranScore) / 2, 2) : null;
+                                $moduleReportScore = $aslabScore !== null && $laboranScore !== null ? round(($aslabScore * 0.8) + ($laboranScore * 0.2), 2) : null;
                                 $moduleGradeLetter = \App\Support\GradeScale::letter($moduleReportScore);
                                 $aslabStatusColor = !$sub ? '' : match(strtoupper($sub->aslab_status)) {'ACC' => 'border-emerald-400 bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200', 'REVISI' => 'border-amber-300 bg-amber-50 text-amber-800', 'DITOLAK' => 'border-red-300 bg-red-50 text-red-800', default => 'border-slate-200 bg-white text-slate-600'};
                                 $laboranStatusColor = !$sub ? '' : match(strtoupper($sub->laboran_status)) {'ACC' => 'border-emerald-400 bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200', 'REVISI' => 'border-amber-300 bg-amber-50 text-amber-800', 'DITOLAK' => 'border-red-300 bg-red-50 text-red-800', default => 'border-slate-200 bg-white text-slate-600'};
@@ -167,7 +167,7 @@
                                             <dl class="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
                                                 <div class="rounded-lg bg-slate-50 px-3 py-2"><dt class="text-slate-500">Nilai Aslab</dt><dd class="mt-1 font-semibold text-slate-900">{{ $aslabScore !== null ? number_format($aslabScore, 2, ',', '.') : '—' }}</dd></div>
                                                 <div class="rounded-lg bg-slate-50 px-3 py-2"><dt class="text-slate-500">Nilai Laboran</dt><dd class="mt-1 font-semibold text-slate-900">{{ $laboranScore !== null ? number_format($laboranScore, 2, ',', '.') : '—' }}</dd></div>
-                                                <div class="rounded-lg bg-emerald-50 px-3 py-2"><dt class="text-emerald-700">Rata-rata</dt><dd class="mt-1 font-semibold text-emerald-800">{{ $moduleReportScore !== null ? number_format($moduleReportScore, 2, ',', '.') : '—' }}</dd></div>
+                                                <div class="rounded-lg bg-emerald-50 px-3 py-2"><dt class="text-emerald-700">Nilai Modul</dt><dd class="mt-1 font-semibold text-emerald-800">{{ $moduleReportScore !== null ? number_format($moduleReportScore, 2, ',', '.') : '—' }}</dd></div>
                                                 <div class="rounded-lg bg-emerald-50 px-3 py-2"><dt class="text-emerald-700">Nilai Huruf</dt><dd class="mt-1 font-semibold text-emerald-800">{{ $moduleGradeLetter ?? '—' }}</dd></div>
                                             </dl>
                                         @endif

@@ -29,7 +29,7 @@ class CourseGradeController extends Controller
             $modules = $meetings->map(function ($meeting) use ($student) {
                 $submission = $meeting->submissions->firstWhere('student_id', (string) $student->id);
                 $moduleScore = $submission && $submission->aslab_score !== null && $submission->laboran_score !== null
-                    ? ((float) $submission->aslab_score + (float) $submission->laboran_score) / 2
+                    ? ((float) $submission->aslab_score * 0.8) + ((float) $submission->laboran_score * 0.2)
                     : null;
 
                 return [
