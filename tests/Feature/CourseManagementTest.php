@@ -4,8 +4,11 @@ namespace Tests\Feature;
 
 use App\Models\Attendance;
 use App\Models\Course;
+use App\Models\CourseGrade;
 use App\Models\Meeting;
 use App\Models\Semester;
+use App\Models\Submission;
+use App\Models\SubmissionHistory;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
@@ -372,7 +375,7 @@ class CourseManagementTest extends TestCase
         $this->actingAs($aslab)->put(route('courses.update', $course), [])->assertForbidden();
     }
 
-    public function test_laboran_can_delete_an_unused_course_but_academic_records_are_protected(): void
+    public function test_laboran_can_delete_course_with_academic_records_after_confirmation(): void
     {
         [$laboran, $dosen, $aslab, $semester] = $this->staffFixture();
         $unused = Course::query()->create([
@@ -422,11 +425,83 @@ class CourseManagementTest extends TestCase
             'status' => 'Hadir',
             'attendance_date' => now()->toDateString(),
         ]);
+        $submission = Submission::query()->create([
+            'student_id' => $student->id,
+            'meeting_id' => $meeting->id,
+            'submission_link' => 'https://drive.google.com/file/d/approved/view',
+            'aslab_status' => 'ACC',
+            'laboran_status' => 'ACC',
+            'is_completed' => true,
+            'aslab_score' => 90,
+            'laboran_score' => 88,
+        ]);
+        $history = SubmissionHistory::query()->create([
+            'submission_id' => $submission->id,
+            'drive_link' => 'https://drive.google.com/file/d/approved/view',
+            'iteration' => 1,
+            'action_type' => 'ACC',
+            'reviewed_by' => $laboran->id,
+        ]);
+        CourseGrade::query()->create([
+            'course_id' => $protected->id,
+            'student_id' => $student->id,
+            'uts_score' => 87,
+            'uas_score' => 91,
+        ]);
 
         $this->actingAs($laboran)->delete(route('courses.destroy', $protected))
-            ->assertRedirect()
-            ->assertSessionHas('error');
-        $this->assertDatabaseHas('courses', ['id' => $protected->id]);
+            ->assertRedirect(route('courses.index'))
+            ->assertSessionHas('success');
+        $this->assertDatabaseMissing('courses', ['id' => $protected->id]);
+        $this->assertDatabaseMissing('meetings', ['id' => $meeting->id]);
+        $this->assertDatabaseMissing('attendances', ['meeting_id' => $meeting->id]);
+        $this->assertDatabaseMissing('submissions', ['id' => $submission->id]);
+        $this->assertDatabaseMissing('submission_histories', ['id' => $history->id]);
+        $this->assertDatabaseMissing('course_grades', ['course_id' => $protected->id]);
+    }
+
+    public function test_laboran_can_archive_and_restore_a_course_without_deleting_records(): void
+    {
+        [$laboran, $dosen, $aslab, $semester] = $this->staffFixture();
+        $course = Course::query()->create([
+            'semester_id' => $semester->id,
+            'course_name' => 'Kelas Arsip Individual',
+            'class_group' => 'C',
+            'target_semester' => 1,
+            'dosen_id' => $dosen->id,
+            'laboran_id' => $laboran->id,
+            'aslab_id' => $aslab->id,
+            'enrollment_code' => 'ARCHIVE01',
+        ]);
+        $meeting = $course->meetings()->create([
+            'meeting_number' => 1,
+            'title' => 'Modul tersimpan',
+        ]);
+
+        $this->actingAs($laboran)->get(route('courses.index'))
+            ->assertOk()
+            ->assertSee('Kelas Arsip Individual')
+            ->assertSee('Arsipkan kelas')
+            ->assertSee('Hapus kelas');
+
+        $this->actingAs($laboran)->patch(route('courses.archive', $course), ['archived' => 1])
+            ->assertRedirect(route('archives.index'))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('courses', ['id' => $course->id, 'is_archived' => true]);
+        $this->assertDatabaseHas('meetings', ['id' => $meeting->id]);
+        $this->actingAs($laboran)->get(route('courses.index'))->assertDontSee('Kelas Arsip Individual');
+        $this->actingAs($laboran)->get(route('archives.index'))->assertOk()->assertSee('Kelas Arsip Individual');
+        $this->actingAs($laboran)->put(route('meetings.update', $meeting), [
+            'title' => 'Tidak boleh diedit dari kelas arsip',
+        ])->assertForbidden();
+
+        $this->actingAs($laboran)->patch(route('courses.archive', $course), ['archived' => 0])
+            ->assertRedirect(route('courses.index'))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('courses', ['id' => $course->id, 'is_archived' => false]);
+        $this->actingAs($laboran)->get(route('courses.index'))->assertSee('Kelas Arsip Individual');
     }
 
     /** @return array{User, User, User, Semester} */

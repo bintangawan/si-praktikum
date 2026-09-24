@@ -157,10 +157,16 @@
                     </a>
                     @if(auth()->user()->hasRole('Laboran'))
                         <a href="{{ route('courses.edit', $course) }}" class="block w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 text-center text-xs font-semibold text-slate-700 transition hover:bg-slate-100">Edit kelas</a>
-                        <form action="{{ route('courses.destroy', $course) }}" method="POST" data-confirm-title="Hapus kelas?" data-confirm="Kelas {{ $course->course_name }} beserta modul dan daftar pesertanya akan dihapus jika belum memiliki data akademik." data-confirm-button="Ya, hapus kelas">
+                        <form action="{{ route('courses.destroy', $course) }}" method="POST" data-confirm-title="Hapus kelas permanen?" data-confirm="Kelas {{ $course->course_name }} beserta presensi, laprak, nilai, riwayat, modul, dan daftar pesertanya akan dihapus permanen. Arsipkan kelas jika datanya masih perlu disimpan." data-confirm-button="Ya, hapus permanen">
                             @csrf
                             @method('DELETE')
                             <button class="w-full rounded-2xl border border-red-100 bg-red-50 py-3 text-xs font-semibold text-red-700 transition hover:bg-red-100">Hapus kelas</button>
+                        </form>
+                        <form action="{{ route('courses.archive', $course) }}" method="POST" data-confirm-title="Arsipkan kelas?" data-confirm="Kelas {{ $course->course_name }} akan dipindahkan ke Arsip Praktikum. Data presensi dan laprak tetap tersimpan dan kelas menjadi baca saja." data-confirm-button="Ya, arsipkan kelas">
+                            @csrf
+                            @method('PATCH')
+                            <input type="hidden" name="archived" value="1">
+                            <button class="w-full rounded-2xl border border-amber-200 bg-amber-50 py-3 text-xs font-semibold text-amber-800 transition hover:bg-amber-100">Arsipkan kelas</button>
                         </form>
                     @endif
                 </div>

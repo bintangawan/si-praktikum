@@ -25,11 +25,14 @@ class SubmissionController extends Controller
     public function index(Request $request, Meeting $meeting): View
     {
         $this->authorize('manage', $meeting->course);
-        $meeting->load('course.students');
+        $meeting->load(['course.semester', 'course.students']);
+        $courseMeetings = $meeting->course->meetings()
+            ->with(['submissions' => fn ($query) => $query->where('is_final', false)->withCount('histories')])
+            ->get();
 
         return view('submissions.index', [
             'meeting' => $meeting,
-            'submissions' => $meeting->submissions()->where('is_final', false)->withCount('histories')->get()->keyBy('student_id'),
+            'courseMeetings' => $courseMeetings,
         ]);
     }
 
@@ -140,6 +143,8 @@ class SubmissionController extends Controller
                     'document_version' => $locked->document_version + 1,
                     'laboran_status' => SubmissionStatus::PENDING->value,
                     'laboran_acc_at' => null,
+                    'aslab_score' => null,
+                    'laboran_score' => null,
                     'is_completed' => false,
                     'last_upload_at' => now(),
                 ]);
@@ -163,6 +168,7 @@ class SubmissionController extends Controller
             'status' => ['required', Rule::in(['ACC', 'REVISI', 'DITOLAK'])],
             'document_version' => ['required', 'integer', 'min:1'],
             'feedback' => ['nullable', 'string', 'max:5000', Rule::requiredIf(fn () => in_array($request->input('status'), ['REVISI', 'DITOLAK'], true))],
+            'score' => ['nullable', 'numeric', 'between:0,100', Rule::requiredIf(fn () => $request->input('status') === 'ACC')],
         ]);
         $status = match ($validated['status']) {
             'ACC' => SubmissionStatus::APPROVED,
@@ -177,16 +183,21 @@ class SubmissionController extends Controller
             abort_unless((int) $validated['document_version'] === (int) $locked->document_version, 409, 'Versi dokumen berubah. Buka ulang laporan sebelum memeriksa.');
 
             if ($role === UserRole::ASLAB) {
+                abort_unless($locked->aslab_status !== SubmissionStatus::APPROVED->value, 409, 'Laporan sudah mendapat ACC Aslab.');
                 $locked->aslab_status = $status->value;
                 $locked->aslab_acc_at = $status === SubmissionStatus::APPROVED ? now() : null;
+                $locked->aslab_score = $status === SubmissionStatus::APPROVED ? $validated['score'] : null;
                 if (in_array($status, [SubmissionStatus::REVISION, SubmissionStatus::REJECTED], true)) {
                     $locked->laboran_status = SubmissionStatus::PENDING->value;
                     $locked->laboran_acc_at = null;
+                    $locked->laboran_score = null;
                 }
             } elseif ($role === UserRole::LABORAN) {
                 abort_unless($locked->aslab_status === SubmissionStatus::APPROVED->value, 422, 'Menunggu verifikasi Asisten Laboratorium.');
+                abort_unless($locked->laboran_status !== SubmissionStatus::APPROVED->value, 409, 'Laporan sudah mendapat ACC Laboran.');
                 $locked->laboran_status = $status->value;
                 $locked->laboran_acc_at = $status === SubmissionStatus::APPROVED ? now() : null;
+                $locked->laboran_score = $status === SubmissionStatus::APPROVED ? $validated['score'] : null;
             } else {
                 abort(403);
             }
@@ -205,14 +216,38 @@ class SubmissionController extends Controller
         return redirect()->route('submissions.index', $submission->meeting_id)->with('success', "Status {$validated['status']} berhasil disimpan.");
     }
 
+    public function score(Request $request, Submission $submission): RedirectResponse
+    {
+        abort_if($submission->is_final, 404);
+        $submission->loadMissing('meeting.course.semester');
+        $this->authorize('review', $submission);
+        abort_unless(! $submission->meeting->course->isArchived(), 403, 'Kelas arsip hanya dapat dibaca.');
+        abort_unless($submission->is_completed, 422, 'Nilai dapat diberikan setelah laporan mendapat ACC dari Aslab dan Laboran.');
+
+        $validated = $request->validate(['score' => ['required', 'numeric', 'between:0,100']]);
+        $role = UserRole::normalize((string) $request->user()->role);
+        abort_unless(in_array($role, [UserRole::ASLAB, UserRole::LABORAN], true), 403);
+
+        DB::transaction(function () use ($submission, $validated, $role): void {
+            $locked = Submission::query()->whereKey($submission->id)->lockForUpdate()->firstOrFail();
+            abort_unless($locked->is_completed && ! $locked->is_final, 422, 'Laporan belum selesai diverifikasi.');
+            $locked->update([$role === UserRole::ASLAB ? 'aslab_score' : 'laboran_score' => $validated['score']]);
+        });
+
+        return back()->with('success', 'Nilai modul berhasil disimpan.');
+    }
+
     public function mySubmissions(Request $request): View
     {
         $userId = $request->user()->id;
         $archived = $request->boolean('archive');
-        $meetings = Meeting::query()->whereNotNull('published_at')->whereHas('course.semester', fn ($q) => $q->where('is_active', ! $archived))->whereHas('course.students', fn ($query) => $query->whereKey($userId))
+        $courseArchiveFilter = fn ($query) => $query->where(fn ($state) => $archived
+            ? $state->where('is_archived', true)->orWhereHas('semester', fn ($semester) => $semester->where('is_active', false))
+            : $state->where('is_archived', false)->whereHas('semester', fn ($semester) => $semester->where('is_active', true)));
+        $meetings = Meeting::query()->whereNotNull('published_at')->whereHas('course', $courseArchiveFilter)->whereHas('course.students', fn ($query) => $query->whereKey($userId))
             ->with(['course', 'submissions' => fn ($query) => $query->where('student_id', $userId)->where('is_final', false)])
             ->get();
-        $finalTasks = FinalTask::query()->whereHas('course.semester', fn ($q) => $q->where('is_active', ! $archived))->whereHas('course.students', fn ($query) => $query->whereKey($userId))
+        $finalTasks = FinalTask::query()->whereHas('course', $courseArchiveFilter)->whereHas('course.students', fn ($query) => $query->whereKey($userId))
             ->with(['course', 'submissions' => fn ($query) => $query->where('student_id', $userId)->where('is_final', true)])
             ->get();
 
@@ -244,7 +279,10 @@ class SubmissionController extends Controller
     {
         $user = $request->user();
         $role = UserRole::normalize((string) $user->role);
-        $query = Submission::query()->with(['student', 'meeting.course', 'finalTask.course'])->where(fn ($q) => $q->whereHas('meeting.course.semester', fn ($s) => $s->where('is_active', true))->orWhereHas('finalTask.course.semester', fn ($s) => $s->where('is_active', true)));
+        $activeCourseSubmission = fn ($course) => $course->where('is_archived', false)->whereHas('semester', fn ($semester) => $semester->where('is_active', true));
+        $query = Submission::query()->with(['student', 'meeting.course', 'finalTask.course'])->where(fn ($q) => $q
+            ->whereHas('meeting.course', $activeCourseSubmission)
+            ->orWhereHas('finalTask.course', $activeCourseSubmission));
 
         match ($role) {
             UserRole::ASLAB => $query->where('aslab_status', SubmissionStatus::PENDING->value)

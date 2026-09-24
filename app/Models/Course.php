@@ -9,6 +9,7 @@ class Course extends Model
 {
     protected $fillable = [
         'semester_id',
+        'is_archived',
         'course_name',
         'class_group',
         'target_semester',
@@ -17,6 +18,11 @@ class Course extends Model
         'aslab_id',
         'enrollment_code',
     ];
+
+    protected function casts(): array
+    {
+        return ['is_archived' => 'boolean'];
+    }
 
     protected static function booted(): void
     {
@@ -86,5 +92,23 @@ class Course extends Model
     {
         // Pastikan nama foreign key di tabel final_tasks adalah course_id
         return $this->hasOne(FinalTask::class, 'course_id');
+    }
+
+    public function grades()
+    {
+        return $this->hasMany(CourseGrade::class);
+    }
+
+    public function isArchived(): bool
+    {
+        if ($this->is_archived) {
+            return true;
+        }
+
+        if ($this->relationLoaded('semester')) {
+            return ! (bool) $this->semester?->is_active;
+        }
+
+        return ! $this->semester()->where('is_active', true)->exists();
     }
 }

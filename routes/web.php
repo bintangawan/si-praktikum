@@ -4,6 +4,7 @@ use App\Http\Controllers\AccountApprovalController;
 use App\Http\Controllers\ArchiveController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\CourseController;
+use App\Http\Controllers\CourseGradeController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FinalTaskController;
 use App\Http\Controllers\FirstLoginController;
@@ -37,6 +38,8 @@ Route::middleware(['auth', 'password.changed', 'account.approved', 'course.archi
     Route::get('courses', [CourseController::class, 'index'])->name('courses.index');
     Route::get('courses/create', [CourseController::class, 'create'])->middleware('role:Laboran')->name('courses.create');
     Route::get('courses/{course}', [MeetingController::class, 'show'])->name('courses.show');
+    Route::get('courses/{course}/grades', [CourseGradeController::class, 'index'])->middleware('role:Dosen')->name('courses.grades.index');
+    Route::put('courses/{course}/grades/{student}', [CourseGradeController::class, 'update'])->middleware('role:Dosen')->name('courses.grades.update');
     Route::get('arsip', [ArchiveController::class, 'index'])->name('archives.index');
     Route::get('tutorials', [TutorialController::class, 'index'])->name('tutorials.index');
     Route::get('submissions/{submission}/file', [SubmissionFileController::class, 'submission'])->name('submissions.file');
@@ -66,6 +69,7 @@ Route::middleware(['auth', 'password.changed', 'account.approved', 'course.archi
         Route::get('meetings/{meeting}/submissions', [SubmissionController::class, 'index'])->name('submissions.index');
         Route::get('submissions/{submission}/handler', [SubmissionController::class, 'handler'])->name('submissions.handler');
         Route::post('submissions/{submission}/approve', [SubmissionController::class, 'approve'])->name('submissions.approve');
+        Route::put('submissions/{submission}/score', [SubmissionController::class, 'score'])->middleware('role:Aslab,Laboran')->name('submissions.score');
         Route::get('final-tasks/{finalTask}', [FinalTaskController::class, 'index'])->name('final-tasks.index');
         Route::put('final-tasks/{finalTask}/deadline', [FinalTaskController::class, 'updateDeadline'])->name('final-tasks.update-deadline');
         Route::put('final-tasks/{finalTask}/description', [FinalTaskController::class, 'updateDescription'])->name('final-tasks.update-description');
@@ -88,6 +92,7 @@ Route::middleware(['auth', 'password.changed', 'account.approved', 'course.archi
         Route::get('courses/{course}/edit', [CourseController::class, 'edit'])->name('courses.edit');
         Route::put('courses/{course}', [CourseController::class, 'update'])->name('courses.update');
         Route::delete('courses/{course}', [CourseController::class, 'destroy'])->name('courses.destroy');
+        Route::patch('courses/{course}/archive', [CourseController::class, 'archive'])->name('courses.archive');
         Route::get('courses/{course}/staff', [CourseController::class, 'editStaff'])->name('courses.staff.edit');
         Route::put('courses/{course}/staff', [CourseController::class, 'updateStaff'])->name('courses.staff.update');
         Route::post('courses', [CourseController::class, 'store'])->name('courses.store');

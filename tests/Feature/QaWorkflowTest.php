@@ -210,9 +210,9 @@ class QaWorkflowTest extends TestCase
             $submission = Submission::where('is_final', $final)->sole();
             $review = route($final ? 'final-tasks.approve' : 'submissions.approve', $submission);
             $method = $final ? 'patch' : 'post';
-            $this->actingAs($aslab)->{$method}($review, ['status' => 'ACC', 'document_version' => 1])->assertRedirect();
+            $this->actingAs($aslab)->{$method}($review, ['status' => 'ACC', 'document_version' => 1, 'score' => 80])->assertRedirect();
             if ($final) {
-                $this->actingAs($laboran)->{$method}($review, ['status' => 'ACC', 'document_version' => 1])->assertRedirect();
+                $this->actingAs($laboran)->{$method}($review, ['status' => 'ACC', 'document_version' => 1, 'score' => 80])->assertRedirect();
             }
             $this->actingAs($student)->put(route($final ? 'final-tasks.update' : 'submissions.update', $submission), ['submission_link' => 'https://drive.google.com/file/d/v2/view', 'document_version' => 1])->assertSessionHasNoErrors();
             $submission->refresh();
@@ -221,8 +221,8 @@ class QaWorkflowTest extends TestCase
             $this->assertSame('Pending', $submission->laboran_status);
             $this->assertNull($submission->aslab_acc_at);
             $this->assertNull($submission->laboran_acc_at);
-            $this->actingAs($aslab)->{$method}($review, ['status' => 'ACC', 'document_version' => 1])->assertStatus(409);
-            $this->actingAs($laboran)->{$method}($review, ['status' => 'ACC', 'document_version' => 2])->assertStatus(422);
+            $this->actingAs($aslab)->{$method}($review, ['status' => 'ACC', 'document_version' => 1, 'score' => 80])->assertStatus(409);
+            $this->actingAs($laboran)->{$method}($review, ['status' => 'ACC', 'document_version' => 2, 'score' => 80])->assertStatus(422);
             $this->actingAs($aslab)->{$method}($review, ['status' => 'REVISI', 'document_version' => 2, $final ? 'notes' : 'feedback' => 'Perbaiki'])->assertRedirect();
             $task->update(['deadline' => now()->subDay()]);
             $this->actingAs($student)->put(route($final ? 'final-tasks.update' : 'submissions.update', $submission), ['submission_link' => 'https://drive.google.com/file/d/v3/view', 'document_version' => 2])->assertSessionHasNoErrors()->assertRedirect(route('courses.show', $course));
@@ -254,8 +254,8 @@ class QaWorkflowTest extends TestCase
         $this->assertDatabaseCount('submission_histories', 1);
         $this->put(route('submissions.update', $submission), ['submission_link' => 'https://drive.google.com/file/d/report-2/view', 'document_version' => 1])->assertSessionHasNoErrors();
         $this->put(route('submissions.update', $submission), ['submission_link' => $link, 'document_version' => 1])->assertStatus(409);
-        $this->actingAs($aslab)->post(route('submissions.approve', $submission), ['status' => 'ACC', 'document_version' => 2])->assertRedirect();
-        $this->actingAs($laboran)->post(route('submissions.approve', $submission), ['status' => 'ACC', 'document_version' => 2])->assertRedirect();
+        $this->actingAs($aslab)->post(route('submissions.approve', $submission), ['status' => 'ACC', 'document_version' => 2, 'score' => 80])->assertRedirect();
+        $this->actingAs($laboran)->post(route('submissions.approve', $submission), ['status' => 'ACC', 'document_version' => 2, 'score' => 90])->assertRedirect();
         $this->assertTrue($submission->fresh()->is_completed);
         $this->actingAs($student)->put(route('submissions.update', $submission), ['submission_link' => $link, 'document_version' => 2])->assertForbidden();
         $this->actingAs($aslab)->post(route('submissions.approve', $submission), ['status' => 'REVISI', 'document_version' => 2, 'feedback' => 'Ubah lagi'])->assertStatus(409);

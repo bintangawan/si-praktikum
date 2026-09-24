@@ -27,7 +27,7 @@
             </div>
         </div>
 
-        @if($course->semester->is_active && in_array(strtoupper(auth()->user()->role), ['LABORAN', 'ASLAB'], true))
+        @if(!$course->isArchived() && in_array(strtoupper(auth()->user()->role), ['LABORAN', 'ASLAB'], true))
             <div class="mb-8 rounded-[2rem] border border-emerald-100 bg-emerald-50/70 p-6 shadow-sm">
                 <div class="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
                     <div>

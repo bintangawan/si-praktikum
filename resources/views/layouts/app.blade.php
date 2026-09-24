@@ -201,7 +201,7 @@
                     @if($flashMessage)
                         <div id="app-flash-message" hidden data-type="{{ $flashType }}" data-message="{{ $flashMessage }}"></div>
                     @endif
-                    @if(isset($course) && !$course->semester->is_active)<p class="mb-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">Kelas arsip hanya dapat dibaca.</p>@endif
+                    @if(isset($course) && $course->isArchived())<p class="mb-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">Kelas arsip hanya dapat dibaca.</p>@endif
                     {{ $slot }}
                 </div>
             </main>

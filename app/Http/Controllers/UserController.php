@@ -80,7 +80,7 @@ class UserController extends Controller
         }
 
         if ($user->hasRole(UserRole::ASLAB) && $targetRole === UserRole::MAHASISWA) {
-            if (Course::query()->where('aslab_id', $user->id)->whereHas('semester', fn ($q) => $q->where('is_active', true))->exists()) {
+            if (Course::query()->where('aslab_id', $user->id)->where('is_archived', false)->whereHas('semester', fn ($q) => $q->where('is_active', true))->exists()) {
                 return back()->with('error', __('Aslab masih ditugaskan pada kelas aktif. Ganti penugasan terlebih dahulu.'));
             }
 

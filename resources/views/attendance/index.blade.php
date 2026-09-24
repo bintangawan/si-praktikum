@@ -1,5 +1,5 @@
 <x-app-layout>
-    @if(!$meeting->course->semester->is_active)<p class="mb-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">Kelas arsip hanya dapat dibaca.</p>@endif
+    @if($meeting->course->isArchived())<p class="mb-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">Kelas arsip hanya dapat dibaca.</p>@endif
     <x-slot name="header_title">
         Presensi: {{ $meeting->title }}
     </x-slot>
@@ -28,7 +28,7 @@
 
         <form action="{{ route('attendance.store', $meeting->id) }}" method="POST">
             @csrf
-                    <fieldset class="contents" @disabled(!$meeting->course->semester->is_active)>
+                    <fieldset class="contents" @disabled($meeting->course->isArchived())>
             <div class="overflow-x-auto">
                 <table class="min-w-[680px] w-full text-left border-collapse">
                     <thead>

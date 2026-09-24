@@ -40,7 +40,8 @@
                         <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                             @foreach($semesterCourses as $course)
                                 {{-- Gunakan gaya card yang sama dengan dashboard, tapi dengan nuansa grayscale/redup --}}
-                                <a href="{{ route('courses.show', $course) }}" class="block group">
+                                <div class="group">
+                                    <a href="{{ route('courses.show', $course) }}" class="block">
                                     <div class="bg-white rounded-2xl border border-gray-200 p-8 shadow-sm hover:shadow-lg hover:border-gray-300 transition-all relative overflow-hidden h-full flex flex-col grayscale hover:grayscale-0">
                                         
                                         {{-- Badge Arsip --}}
@@ -85,7 +86,26 @@
                                             @endif
                                         </div>
                                     </div>
-                                </a>
+                                    </a>
+                                    @if(auth()->user()->hasRole('Laboran'))
+                                        <div class="mt-3 grid grid-cols-2 gap-2">
+                                            <a href="{{ route('courses.edit', $course) }}" class="rounded-xl border border-slate-200 bg-white py-3 text-center text-xs font-semibold text-slate-700 transition hover:bg-slate-50">Edit kelas</a>
+                                            <form action="{{ route('courses.destroy', $course) }}" method="POST" data-confirm-title="Hapus kelas permanen?" data-confirm="Kelas {{ $course->course_name }} beserta presensi, laprak, nilai, riwayat, modul, dan daftar pesertanya akan dihapus permanen. Arsipkan kelas jika datanya masih perlu disimpan." data-confirm-button="Ya, hapus permanen">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button class="w-full rounded-xl border border-red-100 bg-red-50 py-3 text-xs font-semibold text-red-700 transition hover:bg-red-100">Hapus kelas</button>
+                                            </form>
+                                            @if($course->semester?->is_active && $course->is_archived)
+                                                <form action="{{ route('courses.archive', $course) }}" method="POST" class="col-span-2" data-confirm-title="Pulihkan kelas?" data-confirm="Kelas {{ $course->course_name }} akan kembali ke daftar praktikum aktif.">
+                                                    @csrf
+                                                    @method('PATCH')
+                                                    <input type="hidden" name="archived" value="0">
+                                                    <button class="w-full rounded-xl border border-emerald-200 bg-emerald-50 py-3 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100">Pulihkan ke kelas aktif</button>
+                                                </form>
+                                            @endif
+                                        </div>
+                                    @endif
+                                </div>
                             @endforeach
                         </div>
                     </div>

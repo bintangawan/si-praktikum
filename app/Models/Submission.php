@@ -24,6 +24,8 @@ class Submission extends Model
         'aslab_status',
         'laboran_status',
         'dosen_status',
+        'aslab_score',
+        'laboran_score',
         'is_completed',
         'first_upload_at',
         'last_upload_at',
@@ -40,6 +42,8 @@ class Submission extends Model
         'dosen_acc_at' => 'datetime',
         'is_completed' => 'boolean',
         'is_final' => 'boolean',
+        'aslab_score' => 'decimal:2',
+        'laboran_score' => 'decimal:2',
     ];
 
     // Relasi ke Mahasiswa

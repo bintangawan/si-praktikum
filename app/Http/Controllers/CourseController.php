@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Enums\UserRole;
 use App\Models\Course;
 use App\Models\Semester;
-use App\Models\Submission;
 use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\JsonResponse;
@@ -29,6 +28,7 @@ class CourseController extends Controller
 
         $user = $request->user();
         $query = $activeSemester->courses()
+            ->where('is_archived', false)
             ->with(['dosen:id,name', 'aslab:id,name', 'laboran:id,name'])
             ->withCount('students')
             ->latest();
@@ -83,6 +83,7 @@ class CourseController extends Controller
 
         $duplicate = Course::query()
             ->where('semester_id', $activeSemester->id)
+            ->where('is_archived', false)
             ->where('course_name', $validated['course_name'])
             ->where('class_group', $validated['class_group'])
             ->exists();
@@ -123,6 +124,7 @@ class CourseController extends Controller
 
         $course = Course::query()
             ->where('enrollment_code', strtoupper(trim($validated['enrollment_code'])))
+            ->where('is_archived', false)
             ->whereHas('semester', fn ($query) => $query->where('is_active', true))
             ->first();
 
@@ -167,6 +169,7 @@ class CourseController extends Controller
 
         $duplicate = Course::query()
             ->where('semester_id', $course->semester_id)
+            ->where('is_archived', false)
             ->where('course_name', $validated['course_name'])
             ->where('class_group', $validated['class_group'])
             ->whereKeyNot($course->id)
@@ -203,21 +206,37 @@ class CourseController extends Controller
     {
         $this->authorize('manage', $course);
 
-        $hasAcademicRecords = Submission::query()
-            ->where(fn ($query) => $query
-                ->whereHas('meeting', fn ($meeting) => $meeting->where('course_id', $course->id))
-                ->orWhereHas('finalTask', fn ($task) => $task->where('course_id', $course->id)))
-            ->exists()
-            || $course->meetings()->whereHas('attendances')->exists();
-
-        if ($hasAcademicRecords) {
-            return back()->with('error', 'Kelas tidak dapat dihapus karena sudah memiliki presensi atau laprak. Arsipkan kelas melalui semester agar data akademik tetap aman.');
-        }
-
         $name = $course->course_name.' '.$course->class_group;
         DB::transaction(fn () => $course->delete());
 
-        return redirect()->route('courses.index')->with('success', "Kelas {$name} berhasil dihapus.");
+        return redirect()->route('courses.index')->with('success', "Kelas {$name} dan seluruh data akademik terkait berhasil dihapus.");
+    }
+
+    public function archive(Request $request, Course $course): RedirectResponse
+    {
+        $this->authorize('manage', $course);
+        abort_unless($request->user()->hasRole(UserRole::LABORAN), 403);
+
+        $validated = $request->validate(['archived' => ['required', 'boolean']]);
+        $archived = (bool) $validated['archived'];
+        $semesterIsActive = $course->semester()->where('is_active', true)->exists();
+
+        if ($archived && ! $semesterIsActive) {
+            return back()->with('info', 'Kelas sudah berada di semester yang diarsipkan.');
+        }
+
+        if (! $archived && ! $semesterIsActive) {
+            return back()->with('info', 'Kelas tetap diarsipkan karena semesternya belum aktif.');
+        }
+
+        if ((bool) $course->is_archived === $archived) {
+            return back()->with('info', $archived ? 'Kelas sudah diarsipkan.' : 'Kelas sudah aktif.');
+        }
+
+        $course->update(['is_archived' => $archived]);
+
+        return redirect()->route($archived ? 'archives.index' : 'courses.index')
+            ->with('success', $archived ? 'Kelas berhasil diarsipkan.' : 'Kelas berhasil dipulihkan ke daftar kelas aktif.');
     }
 
     public function students(Request $request, Course $course): View

@@ -74,7 +74,7 @@ class WorkflowAuthorizationTest extends TestCase
             'action_type' => 'Upload',
         ]);
 
-        $this->actingAs($aslab)->post(route('submissions.approve', $submission), ['status' => 'ACC', 'document_version' => 1])
+        $this->actingAs($aslab)->post(route('submissions.approve', $submission), ['status' => 'ACC', 'document_version' => 1, 'score' => 80])
             ->assertRedirect(route('submissions.index', $meeting));
 
         $this->assertDatabaseHas('submissions', ['id' => $submission->id, 'aslab_status' => 'ACC']);

@@ -26,7 +26,7 @@ class DashboardController extends Controller
                 ->orderByDesc('semester_id')
                 ->orderBy('course_name')
                 ->get()
-                ->sortByDesc(fn ($course) => (bool) $course->semester?->is_active)
+                ->sortByDesc(fn ($course) => ! $course->isArchived())
                 ->values();
         }
 

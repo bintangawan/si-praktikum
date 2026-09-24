@@ -1,5 +1,5 @@
 <x-app-layout>
-    @if(!$finalTask->course->semester->is_active)<p class="mb-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">Kelas arsip hanya dapat dibaca.</p>@endif
+    @if($finalTask->course->isArchived())<p class="mb-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-800">Kelas arsip hanya dapat dibaca.</p>@endif
     <x-slot name="header_title">Kelola Laprak Final: {{ $finalTask->course->course_name ?? $finalTask->course->name }}</x-slot>
 
     <div class="max-w-[95rem] mx-auto py-8 px-4">
@@ -32,7 +32,7 @@
             <div class="w-full lg:w-auto bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex-shrink-0">
                 <form action="{{ route('final-tasks.update-deadline', $finalTask->id) }}" method="POST" class="flex flex-col sm:flex-row items-end gap-3">
                     @csrf
-                    <fieldset class="contents" @disabled(!$finalTask->course->semester->is_active)>
+                    <fieldset class="contents" @disabled($finalTask->course->isArchived())>
                     @method('PUT')
                     <div class="w-full sm:w-auto">
                         <label class="block text-xs font-semibold text-gray-400 tracking-normal mb-2 ml-1">Batas Waktu</label>
@@ -297,7 +297,7 @@
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in duration-300">
             <form action="{{ route('final-tasks.update-description', $finalTask->id) }}" method="POST">
                 @csrf
-                    <fieldset class="contents" @disabled(!$finalTask->course->semester->is_active)>
+                    <fieldset class="contents" @disabled($finalTask->course->isArchived())>
                 @method('PUT')
                 <div class="p-6 border-b border-gray-50 bg-gray-50/50">
                     <h3 class="text-2xl font-semibold text-gray-800 leading-tight tracking-tight">Edit Deskripsi Final Task</h3>

@@ -55,6 +55,11 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Submission::class, 'student_id');
     }
 
+    public function courseGrades(): HasMany
+    {
+        return $this->hasMany(CourseGrade::class, 'student_id');
+    }
+
     public function hasRole(UserRole|string ...$roles): bool
     {
         $actual = UserRole::normalize((string) $this->getRawOriginal('role'));

@@ -21,7 +21,8 @@ class ProtectArchivedCourse
                     $model instanceof Submission => $model->meeting?->course ?? $model->finalTask?->course,
                     default => null,
                 };
-                abort_if($course && ! $course->semester->is_active, 403, 'Kelas arsip hanya dapat dibaca. Aktifkan semester untuk melakukan perubahan.');
+                $courseSettingsRoute = $request->routeIs('courses.update', 'courses.destroy', 'courses.archive');
+                abort_if($course && $course->isArchived() && ! $courseSettingsRoute, 403, 'Kelas arsip hanya dapat dibaca.');
             }
         }
 

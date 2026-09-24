@@ -3,12 +3,13 @@
     $isFinal = $task instanceof \App\Models\FinalTask;
     $isStudent = auth()->user()->hasRole('Mahasiswa');
     $canResubmit = $submission?->canResubmit() ?? false;
-    $locked = !$course->semester->is_active || ($submission?->is_completed ?? false) || ($task->deadline && now()->gt($task->deadline) && !$canResubmit);
-    $role = auth()->user()->role;
-    $canReview = !$isStudent && $course->semester->is_active && $submission && !$submission->is_completed
-        && ($role === 'Aslab'
-            || ($role === 'Laboran' && $submission->aslab_status === 'ACC')
-            || ($isFinal && $role === 'Dosen' && $submission->aslab_status === 'ACC' && $submission->laboran_status === 'ACC'));
+    $locked = $course->isArchived() || ($submission?->is_completed ?? false) || ($task->deadline && now()->gt($task->deadline) && !$canResubmit);
+    $canReview = !$isStudent && !$course->isArchived() && $submission && !$submission->is_completed
+        && ((auth()->user()->hasRole('Aslab') && $submission->aslab_status !== 'ACC')
+            || (auth()->user()->hasRole('Laboran') && $submission->aslab_status === 'ACC' && $submission->laboran_status !== 'ACC')
+            || ($isFinal && auth()->user()->hasRole('Dosen') && $submission->aslab_status === 'ACC' && $submission->laboran_status === 'ACC' && $submission->dosen_status !== 'ACC'));
+    $canScore = !$isStudent && !$isFinal && !$course->isArchived() && $submission?->is_completed
+        && (auth()->user()->hasRole('Aslab') || auth()->user()->hasRole('Laboran'));
     $studentStatus = $submission?->studentStatus();
     $statusClass = match($studentStatus) {
         'Diterima' => 'bg-emerald-50 text-emerald-800',
@@ -42,7 +43,7 @@
 
                 @if($isStudent)
                     @if($locked)
-                        <p class="rounded-xl bg-slate-50 p-4 text-sm">{{ !$course->semester->is_active ? 'Kelas arsip hanya dapat dibaca.' : ($submission?->is_completed ? 'Laporan diterima dan proses pemeriksaan selesai.' : 'Batas pengumpulan telah ditutup.') }}</p>
+                    <p class="rounded-xl bg-slate-50 p-4 text-sm">{{ $course->isArchived() ? 'Kelas arsip hanya dapat dibaca.' : ($submission?->is_completed ? 'Laporan diterima dan proses pemeriksaan selesai.' : 'Batas pengumpulan telah ditutup.') }}</p>
                     @else
                         <form method="POST" action="{{ $isFinal ? ($submission ? route('final-tasks.update', $submission) : route('final-tasks.submit', $task)) : ($submission ? route('submissions.update', $submission) : route('submissions.store', $task)) }}" class="space-y-4" x-data="driveSubmission(@js(old('submission_link', $submission?->submission_link ?? '')))">
                             @csrf
@@ -54,18 +55,46 @@
                         </form>
                     @endif
                 @elseif($canReview)
-                    <form method="POST" action="{{ $isFinal ? route('final-tasks.approve', $submission) : route('submissions.approve', $submission) }}" class="space-y-4">
+                    <form method="POST" action="{{ $isFinal ? route('final-tasks.approve', $submission) : route('submissions.approve', $submission) }}" class="space-y-4" x-data="{ scoreEnabled: false }">
                         @csrf @if($isFinal) @method('PATCH') @endif
                         <input type="hidden" name="document_version" value="{{ $submission->document_version }}">
+                        @unless($isFinal)
+                            <label class="block text-sm font-semibold">Nilai Modul (0–100)
+                                <input x-ref="score" name="score" type="number" min="0" max="100" step="0.01" disabled :disabled="!scoreEnabled" :required="scoreEnabled" value="{{ old('score') }}" class="mt-2 block w-36 rounded-xl border-slate-200 text-sm disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400">
+                            </label>
+                            <p class="text-xs text-slate-500">Pilih ACC untuk mengaktifkan dan mengisi nilai. Nilai wajib diisi untuk menyimpan ACC.</p>
+                        @endunless
                         <label class="block text-sm font-semibold">Feedback (wajib untuk revisi atau penolakan)<textarea name="{{ $isFinal ? 'notes' : 'feedback' }}" maxlength="5000" rows="4" class="mt-2 w-full rounded-xl border-slate-200">{{ old($isFinal ? 'notes' : 'feedback') }}</textarea></label>
                         <div class="flex flex-wrap gap-3">
-                            <button name="status" value="ACC" class="rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white">Terima / ACC</button>
-                            <button name="status" value="REVISI" class="rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">Minta revisi</button>
-                            <button name="status" value="DITOLAK" class="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">Tolak laporan</button>
+                            <button name="status" value="ACC" @click="scoreEnabled = {{ $isFinal ? 'false' : 'true' }}; if (scoreEnabled) $nextTick(() => $refs.score.focus())" class="rounded-xl bg-emerald-700 px-4 py-3 text-sm font-semibold text-white">Terima / ACC</button>
+                            <button name="status" value="REVISI" @click="scoreEnabled = false" class="rounded-xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">Minta revisi</button>
+                            <button name="status" value="DITOLAK" @click="scoreEnabled = false" class="rounded-xl bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">Tolak laporan</button>
                         </div>
                     </form>
                 @else
                     <p class="text-sm text-slate-500">Mode akses baca. Laporan selesai, semester diarsipkan, atau masih menunggu tahap pemeriksa sebelumnya.</p>
+                @endif
+
+                @if($canScore)
+                    @php
+                        $scoreField = auth()->user()->hasRole('Aslab') ? 'aslab_score' : 'laboran_score';
+                    @endphp
+                    <section class="mt-6 border-t border-slate-100 pt-5">
+                        <h3 class="font-semibold text-slate-900">Nilai {{ auth()->user()->hasRole('Aslab') ? 'Aslab' : 'Laboran' }} modul {{ $submission->meeting->meeting_number }}</h3>
+                        @if($submission->{$scoreField} === null)
+                            <p class="mt-1 text-xs leading-5 text-amber-700">Nilai ACC lama belum tercatat. Isi nilai 0-100 untuk melengkapi rekap.</p>
+                            <form method="POST" action="{{ route('submissions.score', $submission) }}" class="mt-3 flex flex-wrap items-end gap-3">
+                                @csrf @method('PUT')
+                                <label class="text-sm font-semibold">Nilai
+                                    <input name="score" type="number" min="0" max="100" step="0.01" required value="{{ old('score') }}" class="mt-1 block w-32 rounded-xl border-slate-200 text-sm">
+                                </label>
+                                <button class="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800">Simpan nilai</button>
+                            </form>
+                        @else
+                            <p class="mt-2 text-sm text-slate-600">Nilai sudah disimpan: <strong class="text-emerald-800">{{ $submission->{$scoreField} }}</strong></p>
+                        @endif
+                        <p class="mt-3 text-xs text-slate-500">Nilai Aslab: <strong>{{ $submission->aslab_score ?? '-' }}</strong> | Nilai Laboran: <strong>{{ $submission->laboran_score ?? '-' }}</strong></p>
+                    </section>
                 @endif
             </section>
 

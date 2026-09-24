@@ -11,7 +11,7 @@
         </div>
         <div class="flex items-center gap-3">
             <span class="rounded-full bg-emerald-50 px-3 py-1.5 text-sm font-semibold text-emerald-800">{{ $course->meetings->count() }} modul</span>
-            @if($canManageModules && $course->semester->is_active)
+            @if($canManageModules && !$course->isArchived())
                 <a href="{{ route('courses.modules.edit', $course) }}" class="rounded-xl border border-emerald-200 bg-white px-4 py-2 text-sm font-semibold text-emerald-800">Kelola modul</a>
             @endif
         </div>
@@ -73,7 +73,7 @@
                 <div class="mt-auto flex flex-wrap gap-3 pt-5">
                     @if($published)
                         @if($student)
-                            <a href="{{ route('mahasiswa.submissions.manage', $meeting) }}" class="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white">{{ !$course->semester->is_active || $submission?->is_completed ? 'Lihat laporan' : ($canResubmit ? 'Upload perbaikan' : ($submission ? 'Lihat status' : 'Upload laprak')) }}</a>
+                            <a href="{{ route('mahasiswa.submissions.manage', $meeting) }}" class="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white">{{ $course->isArchived() || $submission?->is_completed ? 'Lihat laporan' : ($canResubmit ? 'Upload perbaikan' : ($submission ? 'Lihat status' : 'Upload laprak')) }}</a>
                         @else
                             <a href="{{ route('submissions.index', $meeting) }}" class="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white">Laporan ({{ $meeting->submissions_count }})</a>
                             <a href="{{ route('attendance.index', $meeting) }}" class="rounded-xl bg-slate-50 px-4 py-2.5 text-sm text-slate-700">Presensi</a>
@@ -81,7 +81,7 @@
                         @if($meeting->module_drive_link)
                             <a href="{{ \App\Services\DriveLink::preview($meeting->module_drive_link) ?? $meeting->module_drive_link }}" target="_blank" rel="noopener noreferrer" class="rounded-xl border border-slate-200 px-4 py-2.5 text-sm text-emerald-800">Lihat materi</a>
                         @endif
-                    @elseif($canManageModules && $course->semester->is_active)
+                    @elseif($canManageModules && !$course->isArchived())
                         <a href="{{ route('courses.modules.edit', $course) }}" class="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white">Atur modul</a>
                     @endif
                 </div>

@@ -15,7 +15,9 @@ class ArchiveController extends Controller
         $query = Course::query()
             ->with(['dosen:id,name', 'aslab:id,name', 'laboran:id,name', 'semester:id,name,is_active'])
             ->withCount('students')
-            ->whereHas('semester', fn ($semester) => $semester->where('is_active', false))
+            ->where(fn ($query) => $query
+                ->where('is_archived', true)
+                ->orWhereHas('semester', fn ($semester) => $semester->where('is_active', false)))
             ->latest();
 
         if ($role === 'MAHASISWA') {
