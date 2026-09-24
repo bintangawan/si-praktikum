@@ -84,6 +84,7 @@ Route::middleware(['auth', 'password.changed', 'account.approved', 'course.archi
         Route::get('account-approvals', [AccountApprovalController::class, 'index'])->name('accounts.approvals');
         Route::post('account-approvals/all', [AccountApprovalController::class, 'approveAll'])->name('accounts.approve-all');
         Route::post('account-approvals/{user}', [AccountApprovalController::class, 'approve'])->name('accounts.approve');
+        Route::delete('account-approvals/{user}', [AccountApprovalController::class, 'destroy'])->name('accounts.destroy');
         Route::get('courses/{course}/students/search', [CourseController::class, 'searchStudents'])->name('courses.search-students');
         Route::post('courses/{course}/students', [CourseController::class, 'addStudent'])->name('courses.add-student');
     });

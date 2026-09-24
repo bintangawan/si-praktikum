@@ -40,20 +40,20 @@
                     <tbody class="divide-y divide-slate-100">
                         @forelse($rows as $row)
                             @php
-                                $readyModules = $row->modules->filter(fn ($module) => $module->submission?->is_completed && $module->submission->aslab_score !== null && $module->submission->laboran_score !== null)->count();
+                                $readyModules = collect($row['modules'])->filter(fn ($module) => $module['is_completed'] && $module['has_aslab_score'] && $module['has_laboran_score'])->count();
                             @endphp
                             <tr class="align-top hover:bg-slate-50/50">
                                 <td class="px-5 py-5">
-                                    <p class="font-semibold text-slate-900">{{ $row->student->name }}</p>
-                                    <p class="mt-1 text-xs text-slate-500">{{ $row->student->id }}</p>
+                                    <p class="font-semibold text-slate-900">{{ $row['student_name'] }}</p>
+                                    <p class="mt-1 text-xs text-slate-500">{{ $row['student_id'] }}</p>
                                     <details class="mt-3">
                                         <summary class="cursor-pointer text-xs font-semibold text-emerald-700">Rincian nilai modul ({{ $readyModules }}/{{ $meetings->count() }})</summary>
                                         <div class="mt-3 min-w-[330px] space-y-2">
-                                            @foreach($row->modules as $module)
+                                            @foreach($row['modules'] as $module)
                                                 <div class="flex items-center justify-between gap-3 rounded-lg bg-slate-50 px-3 py-2 text-xs">
-                                                    <span class="min-w-0 truncate text-slate-700">Modul {{ $module->meeting->meeting_number }} · {{ $module->meeting->title }}</span>
-                                                    @if($module->submission)
-                                                        <span class="shrink-0 text-right text-slate-600">Aslab {{ $module->submission->aslab_score ?? '—' }} · Lab {{ $module->submission->laboran_score ?? '—' }}<br><strong class="text-emerald-700">Rata-rata {{ $module->score === null ? '—' : number_format($module->score, 2, ',', '.') }}</strong></span>
+                                                    <span class="min-w-0 truncate text-slate-700">Modul {{ $module['meeting_number'] }} · {{ $module['meeting_title'] }}</span>
+                                                    @if($module['has_submission'])
+                                                        <span class="shrink-0 text-right text-slate-600">Aslab {{ $module['aslab_score'] ?? '—' }} · Lab {{ $module['laboran_score'] ?? '—' }}<br><strong class="text-emerald-700">Rata-rata {{ $module['score'] === null ? '—' : number_format($module['score'], 2, ',', '.') }}</strong></span>
                                                     @else
                                                         <span class="shrink-0 text-amber-700">Belum mengumpulkan</span>
                                                     @endif
@@ -63,27 +63,27 @@
                                     </details>
                                 </td>
                                 <td class="px-4 py-5 text-center">
-                                    @if($row->laprak !== null)
-                                        <span class="font-bold text-slate-900">{{ number_format($row->laprak, 2, ',', '.') }}</span><span class="ml-1 rounded-md bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">{{ $row->laprak_letter }}</span>
+                                    @if($row['laprak'] !== null)
+                                        <span class="font-bold text-slate-900">{{ number_format($row['laprak'], 2, ',', '.') }}</span><span class="ml-1 rounded-md bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">{{ $row['laprak_letter'] }}</span>
                                     @else
                                         <span class="text-xs text-amber-700">Belum lengkap<br>{{ $readyModules }}/{{ $meetings->count() }} modul dinilai</span>
                                     @endif
                                 </td>
                                 <td class="px-4 py-5 text-center">
-                                    @if($row->uts !== null)<span class="font-bold">{{ number_format($row->uts, 2, ',', '.') }}</span><span class="ml-1 text-xs font-semibold text-slate-500">{{ $row->uts_letter }}</span>@else<span class="text-slate-400">—</span>@endif
+                                    @if($row['uts'] !== null)<span class="font-bold">{{ number_format($row['uts'], 2, ',', '.') }}</span><span class="ml-1 text-xs font-semibold text-slate-500">{{ $row['uts_letter'] }}</span>@else<span class="text-slate-400">—</span>@endif
                                 </td>
                                 <td class="px-4 py-5 text-center">
-                                    @if($row->uas !== null)<span class="font-bold">{{ number_format($row->uas, 2, ',', '.') }}</span><span class="ml-1 text-xs font-semibold text-slate-500">{{ $row->uas_letter }}</span>@else<span class="text-slate-400">—</span>@endif
+                                    @if($row['uas'] !== null)<span class="font-bold">{{ number_format($row['uas'], 2, ',', '.') }}</span><span class="ml-1 text-xs font-semibold text-slate-500">{{ $row['uas_letter'] }}</span>@else<span class="text-slate-400">—</span>@endif
                                 </td>
                                 <td class="px-4 py-5 text-center">
-                                    @if($row->final !== null)<span class="text-lg font-bold text-emerald-800">{{ number_format($row->final, 2, ',', '.') }}</span><span class="ml-1 rounded-md bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">{{ $row->final_letter }}</span>@else<span class="text-xs text-slate-400">Menunggu nilai lengkap</span>@endif
+                                    @if($row['final'] !== null)<span class="text-lg font-bold text-emerald-800">{{ number_format($row['final'], 2, ',', '.') }}</span><span class="ml-1 rounded-md bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">{{ $row['final_letter'] }}</span>@else<span class="text-xs text-slate-400">Menunggu nilai lengkap</span>@endif
                                 </td>
                                 <td class="px-5 py-5">
-                                    @if($row->ready && !$course->isArchived())
-                                        <form method="POST" action="{{ route('courses.grades.update', [$course, $row->student]) }}" class="flex flex-wrap items-end gap-2">
+                                    @if($row['ready'] && !$course->isArchived())
+                                        <form method="POST" action="{{ route('courses.grades.update', [$course, $row['student_id']]) }}" class="flex flex-wrap items-end gap-2">
                                             @csrf @method('PUT')
-                                            <label class="text-xs font-semibold text-slate-500">UTS<input name="uts_score" type="number" required min="0" max="100" step="0.01" value="{{ $row->uts }}" class="mt-1 block w-24 rounded-lg border-slate-200 text-sm text-slate-900"></label>
-                                            <label class="text-xs font-semibold text-slate-500">UAS<input name="uas_score" type="number" required min="0" max="100" step="0.01" value="{{ $row->uas }}" class="mt-1 block w-24 rounded-lg border-slate-200 text-sm text-slate-900"></label>
+                                            <label class="text-xs font-semibold text-slate-500">UTS<input name="uts_score" type="number" required min="0" max="100" step="0.01" value="{{ $row['uts'] }}" class="mt-1 block w-24 rounded-lg border-slate-200 text-sm text-slate-900"></label>
+                                            <label class="text-xs font-semibold text-slate-500">UAS<input name="uas_score" type="number" required min="0" max="100" step="0.01" value="{{ $row['uas'] }}" class="mt-1 block w-24 rounded-lg border-slate-200 text-sm text-slate-900"></label>
                                             <button class="rounded-lg bg-emerald-700 px-3 py-2.5 text-xs font-bold text-white hover:bg-emerald-800">Simpan</button>
                                         </form>
                                     @else

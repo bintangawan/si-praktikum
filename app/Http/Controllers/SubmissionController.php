@@ -13,6 +13,7 @@ use App\Services\DriveLink;
 use App\Services\SubmissionFileStorage;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
@@ -335,7 +336,7 @@ class SubmissionController extends Controller
             'iteration' => $submission->histories()->max('iteration') + 1,
             'feedback' => $feedback,
             'action_type' => $action,
-            'reviewed_by' => $action === 'Upload' || $action === 'Revision' && $feedback === null ? null : auth()->id(),
+            'reviewed_by' => $action === 'Upload' || $action === 'Revision' && $feedback === null ? null : Auth::id(),
         ]);
     }
 }

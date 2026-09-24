@@ -64,7 +64,35 @@ class AccountApprovalTest extends TestCase
             $this->actingAs(User::factory()->create(['role' => $role]))->get(route('accounts.approvals'))->assertForbidden();
             $this->post(route('accounts.approve', $pending))->assertForbidden();
             $this->post(route('accounts.approve-all'))->assertForbidden();
+            $this->delete(route('accounts.destroy', $pending))->assertForbidden();
         }
         $this->assertNull($pending->fresh()->approved_at);
+    }
+
+    public function test_laboran_and_aslab_can_delete_only_the_selected_pending_student(): void
+    {
+        foreach (['Laboran', 'Aslab'] as $role) {
+            $staff = User::factory()->create(['role' => $role]);
+            $selected = User::factory()->create(['approved_at' => null]);
+            $otherPending = User::factory()->create(['approved_at' => null]);
+            $approved = User::factory()->create();
+
+            $this->actingAs($staff)->get(route('accounts.approvals'))
+                ->assertOk()
+                ->assertSee('Hapus akun');
+
+            $this->delete(route('accounts.destroy', $selected))
+                ->assertRedirect()
+                ->assertSessionHas('success');
+
+            $this->assertDatabaseMissing('users', ['id' => $selected->id]);
+            $this->assertDatabaseHas('users', ['id' => $otherPending->id, 'approved_at' => null]);
+            $this->assertDatabaseHas('users', ['id' => $approved->id]);
+
+            $this->delete(route('accounts.destroy', $approved))
+                ->assertRedirect()
+                ->assertSessionHas('error');
+            $this->assertDatabaseHas('users', ['id' => $approved->id]);
+        }
     }
 }

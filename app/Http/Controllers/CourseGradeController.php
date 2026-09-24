@@ -32,26 +32,33 @@ class CourseGradeController extends Controller
                     ? ((float) $submission->aslab_score + (float) $submission->laboran_score) / 2
                     : null;
 
-                return (object) [
-                    'meeting' => $meeting,
-                    'submission' => $submission,
+                return [
+                    'meeting_number' => $meeting->meeting_number,
+                    'meeting_title' => $meeting->title,
+                    'has_submission' => $submission !== null,
+                    'is_completed' => (bool) ($submission?->is_completed ?? false),
+                    'has_aslab_score' => $submission?->aslab_score !== null,
+                    'has_laboran_score' => $submission?->laboran_score !== null,
+                    'aslab_score' => $submission?->aslab_score,
+                    'laboran_score' => $submission?->laboran_score,
                     'score' => $moduleScore === null ? null : round($moduleScore, 2),
                 ];
             });
 
             $ready = $meetings->isNotEmpty()
                 && $meetings->every(fn ($meeting) => $meeting->published_at !== null)
-                && $modules->every(fn ($module) => $module->submission?->is_completed
-                    && $module->submission->aslab_score !== null
-                    && $module->submission->laboran_score !== null);
+                && $modules->every(fn ($module) => $module['is_completed']
+                    && $module['has_aslab_score']
+                    && $module['has_laboran_score']);
             $laprak = $ready ? round((float) $modules->avg('score'), 2) : null;
             $grade = $grades->get((string) $student->id);
             $uts = $grade?->uts_score === null ? null : (float) $grade->uts_score;
             $uas = $grade?->uas_score === null ? null : (float) $grade->uas_score;
             $final = $ready && $uts !== null && $uas !== null ? round(($laprak + $uts + $uas) / 3, 2) : null;
 
-            return (object) [
-                'student' => $student,
+            return [
+                'student_name' => $student->name,
+                'student_id' => $student->id,
                 'modules' => $modules,
                 'ready' => $ready,
                 'laprak' => $laprak,

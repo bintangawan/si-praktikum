@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -40,5 +41,39 @@ class AccountApprovalController extends Controller
         ]));
 
         return back()->with('success', "{$count} akun mahasiswa berhasil diverifikasi.");
+    }
+
+    public function destroy(User $user): RedirectResponse
+    {
+        abort_unless($user->hasRole('Mahasiswa'), 403);
+
+        $deleted = DB::transaction(function () use ($user): bool {
+            $pendingStudent = User::query()
+                ->whereKey($user->id)
+                ->where('role', 'Mahasiswa')
+                ->whereNull('approved_at')
+                ->lockForUpdate()
+                ->first();
+
+            if (! $pendingStudent) {
+                return false;
+            }
+
+            $hasAcademicRecords = $pendingStudent->attendances()->exists()
+                || $pendingStudent->submissions()->exists()
+                || $pendingStudent->courseGrades()->exists();
+
+            if ($hasAcademicRecords) {
+                return false;
+            }
+
+            return (bool) $pendingStudent->delete();
+        });
+
+        if (! $deleted) {
+            return back()->with('error', 'Akun tidak dapat dihapus karena sudah diverifikasi atau memiliki data akademik.');
+        }
+
+        return back()->with('success', "Akun {$user->name} berhasil dihapus.");
     }
 }
