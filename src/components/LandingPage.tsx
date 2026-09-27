@@ -1,17 +1,47 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, BookOpen, CheckCircle2, ClipboardCheck, GraduationCap, UsersRound } from 'lucide-react';
+import Image from 'next/image';
+import { useState } from 'react';
+import { ArrowRight, BookOpen, CheckCircle2, ClipboardCheck, GraduationCap, Menu, UsersRound, X } from 'lucide-react';
 import { LocaleSwitcher } from '@/components/LocaleSwitcher';
 import { t } from '@/lib/locale';
 import { useLocale } from '@/lib/locale-context';
 
 export function LandingPage({ signedIn, destination }: { signedIn: boolean; destination: string }) {
   const locale = useLocale();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const closeMenu = () => setIsMenuOpen(false);
+
   return <main className="min-h-screen overflow-hidden bg-slate-950 text-white">
     <header className="relative z-10 mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-4 sm:gap-4 sm:px-8 sm:py-5 lg:px-10">
-      <Link href="/" className="flex min-w-0 items-center gap-2 sm:gap-3"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 sm:h-11 sm:w-11 sm:rounded-2xl"><BookOpen className="h-5 w-5 sm:h-6 sm:w-6" /></span><span className="truncate text-lg font-bold tracking-tight sm:text-xl">SI-<span className="text-emerald-400">Praktikum</span></span></Link>
-      <nav className="flex shrink-0 items-center gap-1 sm:gap-3"><LocaleSwitcher /><Link href={destination} className="rounded-xl px-2.5 py-2.5 text-xs font-semibold text-slate-200 transition hover:bg-white/5 sm:px-4 sm:text-sm">{t(locale, signedIn ? 'landing.dashboard' : 'landing.signIn')}</Link>{!signedIn && <Link href="/register" className="hidden rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400 sm:inline-flex">{t(locale, 'landing.signUp')}</Link>}</nav>
+      <Link href="/" className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white shadow-lg shadow-emerald-500/20 sm:h-11 sm:w-11 sm:rounded-2xl">
+          <Image src="/images/logo-uinsu.png" alt="Logo UIN Sumatera Utara" width={44} height={44} className="h-full w-full origin-top scale-[2.2] object-cover object-top" priority />
+        </span>
+        <span className="truncate text-lg font-bold tracking-tight sm:text-xl">SI-<span className="text-emerald-400">Praktikum</span></span>
+      </Link>
+      <nav aria-label="Account navigation" className="flex shrink-0 items-center gap-2 sm:gap-3">
+        <LocaleSwitcher />
+        <div className="hidden items-center gap-2 sm:flex">
+          <Link href={destination} className="rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-200 transition hover:bg-white/5">{t(locale, signedIn ? 'landing.dashboard' : 'landing.signIn')}</Link>
+          {!signedIn && <Link href="/register" className="inline-flex rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-400">{t(locale, 'landing.signUp')}</Link>}
+        </div>
+        <button
+          type="button"
+          className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 text-slate-100 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 sm:hidden"
+          aria-label={isMenuOpen ? (locale === 'id' ? 'Tutup menu' : 'Close menu') : (locale === 'id' ? 'Buka menu' : 'Open menu')}
+          aria-expanded={isMenuOpen}
+          aria-controls="landing-mobile-menu"
+          onClick={() => setIsMenuOpen((open) => !open)}
+        >
+          {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </button>
+      </nav>
+      {isMenuOpen && <div id="landing-mobile-menu" className="absolute right-4 top-full z-20 flex w-[min(18rem,calc(100vw-2rem))] flex-col gap-2 rounded-2xl border border-white/10 bg-slate-900 p-3 shadow-2xl shadow-black/40 sm:hidden">
+        <Link href={destination} onClick={closeMenu} className="rounded-xl px-4 py-3 text-sm font-semibold text-slate-100 transition hover:bg-white/10">{t(locale, signedIn ? 'landing.dashboard' : 'landing.signIn')}</Link>
+        {!signedIn && <Link href="/register" onClick={closeMenu} className="rounded-xl bg-emerald-500 px-4 py-3 text-sm font-semibold text-white transition hover:bg-emerald-400">{t(locale, 'landing.signUp')}</Link>}
+      </div>}
     </header>
     <div className="relative mx-auto max-w-7xl px-5 sm:px-8 lg:px-10">
       <div className="pointer-events-none absolute -right-40 top-10 h-[32rem] w-[32rem] rounded-full bg-emerald-500/15 blur-3xl" /><div className="pointer-events-none absolute -left-40 top-64 h-80 w-80 rounded-full bg-emerald-400/10 blur-3xl" />
