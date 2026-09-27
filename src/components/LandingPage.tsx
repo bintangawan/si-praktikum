@@ -17,7 +17,7 @@ export function LandingPage({ signedIn, destination }: { signedIn: boolean; dest
     <header className="relative z-10 mx-auto flex max-w-7xl items-center justify-between gap-2 px-4 py-4 sm:gap-4 sm:px-8 sm:py-5 lg:px-10">
       <Link href="/" className="flex min-w-0 items-center gap-2 sm:gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white shadow-lg shadow-emerald-500/20 sm:h-11 sm:w-11 sm:rounded-2xl">
-          <Image src="/images/logo-uinsu.png" alt="Logo UIN Sumatera Utara" width={44} height={44} className="h-full w-full origin-top scale-[2.2] object-cover object-top" priority />
+          <Image src="/images/logo-uinsu.png" alt="Logo UIN Sumatera Utara" width={44} height={44} className="h-full w-full object-contain" priority />
         </span>
         <span className="truncate text-lg font-bold tracking-tight sm:text-xl">SI-<span className="text-emerald-400">Praktikum</span></span>
       </Link>
