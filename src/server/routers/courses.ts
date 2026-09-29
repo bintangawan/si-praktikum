@@ -3,6 +3,7 @@ import { TRPCError } from '@trpc/server';
 import { and, asc, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { getCourseBySlug, requireCourseManager, requireCourseStudent, requireCourseView, requireCourseWritable, requireModuleManager } from '../auth/access';
+import { canAssignCourseAslab, COURSE_CREATOR_ROLES, defaultCourseAslabId } from '@/lib/course-permissions';
 import { getDb } from '../db';
 import { attendances, courseGrades, courseStaffHistories, courseUsers, courses, finalTasks, meetings, semesters, submissionHistories, submissions, users } from '../db/schema';
 import { protectedProcedure, roleProcedure, router } from '../trpc/init';
@@ -17,13 +18,19 @@ async function validStaff(id: string, role: 'Dosen' | 'Aslab' | 'Laboran') {
 }
 
 export const coursesRouter = router({
-  createOptions: roleProcedure('Laboran').query(async () => {
+  createOptions: roleProcedure(...COURSE_CREATOR_ROLES).query(async ({ ctx }) => {
     const [[semester], staff] = await Promise.all([
       getDb().select({ id: semesters.id, name: semesters.name }).from(semesters).where(eq(semesters.isActive, true)).limit(1),
       getDb().select({ id: users.id, name: users.name, role: users.role }).from(users)
         .where(and(inArray(users.role, ['Dosen', 'Laboran', 'Aslab']), sql`${users.approvedAt} IS NOT NULL`)).orderBy(asc(users.name)),
     ]);
-    return { semester: semester ?? null, dosens: staff.filter((user) => user.role === 'Dosen'), laborans: staff.filter((user) => user.role === 'Laboran'), aslabs: staff.filter((user) => user.role === 'Aslab') };
+    return {
+      semester: semester ?? null,
+      dosens: staff.filter((user) => user.role === 'Dosen'),
+      laborans: staff.filter((user) => user.role === 'Laboran'),
+      aslabs: staff.filter((user) => user.role === 'Aslab'),
+      currentAslabId: defaultCourseAslabId(ctx.user.role, ctx.user.id),
+    };
   }),
 
   archives: protectedProcedure.query(async ({ ctx }) => {
@@ -149,7 +156,7 @@ export const coursesRouter = router({
     return { course: { ...course, ...staff }, student: { id: ctx.user.id, name: ctx.user.name, avatar: ctx.user.avatar }, meetings: moduleRows };
   }),
 
-  create: roleProcedure('Laboran').input(z.object({
+  create: roleProcedure(...COURSE_CREATOR_ROLES).input(z.object({
     courseName: nameInput,
     classGroup: z.string().trim().min(1).max(50).transform((value) => value.toUpperCase()),
     targetSemester: z.number().int().min(1).max(14),
@@ -157,8 +164,11 @@ export const coursesRouter = router({
     laboranId: z.string().min(1).max(20),
     aslabId: z.string().min(1).max(20),
     moduleCount: z.number().int().min(1).max(16),
-  })).mutation(async ({ input }) => {
+  })).mutation(async ({ input, ctx }) => {
     const db = getDb();
+    if (!canAssignCourseAslab(ctx.user.role, ctx.user.id, input.aslabId)) {
+      throw new TRPCError({ code: 'FORBIDDEN', message: 'Aslab hanya dapat membuat kelas untuk dirinya sendiri.' });
+    }
     const [activeSemester] = await db.select().from(semesters).where(eq(semesters.isActive, true)).limit(1);
     if (!activeSemester) throw new TRPCError({ code: 'BAD_REQUEST', message: 'Aktifkan semester sebelum membuat kelas.' });
     await Promise.all([validStaff(input.dosenId, 'Dosen'), validStaff(input.laboranId, 'Laboran'), validStaff(input.aslabId, 'Aslab')]);

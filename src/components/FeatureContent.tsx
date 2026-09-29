@@ -12,6 +12,7 @@ import { confirmAppAction, promptAppText, showAppAlert } from '@/lib/alerts';
 import { localizeServerMessage, t } from '@/lib/locale';
 import { useLocale } from '@/lib/locale-context';
 import type { GradeExportCourse, GradeExportRow } from '@/lib/grade-export';
+import { canCreateCourse, canViewEnrollmentCode } from '@/lib/course-permissions';
 
 // Server DTOs are intentionally treated as dynamic records at this shared view boundary.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -149,12 +150,17 @@ function StaffDashboardView({ data, user }: { data: AnyRecord; user: SessionUser
     </section>
     <section>
       <div className="mb-4 sm:mb-5"><h2 className="text-lg font-bold tracking-tight text-slate-900 sm:text-xl">{t(locale, 'ui.assignedClasses')}</h2><p className="mt-1 text-sm leading-6 text-slate-500">{t(locale, 'ui.assignedClassesDescription')}</p></div>
-      <AssignedCourseCards courses={data.courses ?? []} />
+      <AssignedCourseCards
+        courses={data.courses ?? []}
+        showEnrollmentCode={canViewEnrollmentCode(user.role)}
+        emptyDescription={t(locale, 'ui.createClassToStart')}
+        emptyAction={<Link href="/courses/create" className={`${primary} mt-4`}><Plus className="h-4 w-4" /> {t(locale, 'ui.createCourse')}</Link>}
+      />
     </section>
   </div>;
 }
 
-function AssignedCourseCards({ courses }: { courses: AnyRecord[] }) {
+function AssignedCourseCards({ courses, showEnrollmentCode = false, emptyDescription, emptyAction }: { courses: AnyRecord[]; showEnrollmentCode?: boolean; emptyDescription?: string; emptyAction?: ReactNode }) {
   const locale = useLocale();
   return courses.length ? <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
     {courses.map((course) => {
@@ -165,6 +171,7 @@ function AssignedCourseCards({ courses }: { courses: AnyRecord[] }) {
           <div className="mt-5 min-w-0 flex-1"><p className="text-xs font-semibold text-slate-500">{localizedSemesterName(locale, course.semesterName)}</p><h3 className="mt-1 break-words text-lg font-bold leading-snug text-slate-900 sm:text-xl">{course.name}</h3><p className="mt-1 text-sm text-slate-500">{t(locale, 'ui.class')} {course.group}</p></div>
           <div className="mt-5 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4"><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs font-medium text-slate-500">{t(locale, 'ui.enrolledStudents')}</p><p className="mt-1 text-sm font-bold text-slate-800">{course.studentCount}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs font-medium text-slate-500">{t(locale, 'ui.module')}</p><p className="mt-1 text-sm font-bold text-slate-800">{course.moduleCount}</p></div></div>
           <div className="mt-4 grid gap-2 text-xs text-slate-500"><p><span className="font-semibold text-slate-600">{t(locale, 'ui.lecturer')}:</span> {course.dosenName ?? '—'}</p><p><span className="font-semibold text-slate-600">{t(locale, 'ui.labAssistant')}:</span> {course.aslabName ?? '—'}</p><p><span className="font-semibold text-slate-600">{t(locale, 'ui.labAdministrator')}:</span> {course.laboranName ?? '—'}</p></div>
+          {showEnrollmentCode && course.enrollmentCode && <div className="mt-4 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-emerald-100 bg-emerald-50/70 px-3 py-2.5"><span className="text-xs font-medium text-slate-600">{t(locale, 'ui.classCode')}</span><code className="break-all font-mono text-sm font-bold tracking-wider text-emerald-900">{course.enrollmentCode}</code></div>}
         </div>
         <div className={`grid grid-cols-1 gap-2 border-t border-slate-100 bg-slate-50/70 p-4 ${isActive ? 'sm:grid-cols-3' : ''}`}>
           <Link href={`/courses/${course.slug}`} className={`${primary} text-xs sm:col-span-3`}>{t(locale, 'ui.openCourse')}<ArrowRight className="h-4 w-4" /></Link>
@@ -172,7 +179,7 @@ function AssignedCourseCards({ courses }: { courses: AnyRecord[] }) {
         </div>
       </article>;
     })}
-  </div> : <div className={`${card} border-dashed px-5 py-12 text-center sm:py-16`}><BookOpen className="mx-auto h-9 w-9 text-slate-400" /><h3 className="mt-4 text-base font-bold text-slate-800">{t(locale, 'ui.noAssignedClasses')}</h3><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500">{t(locale, 'ui.contactLabForAssignment')}</p></div>;
+  </div> : <div className={`${card} border-dashed px-5 py-12 text-center sm:py-16`}><BookOpen className="mx-auto h-9 w-9 text-slate-400" /><h3 className="mt-4 text-base font-bold text-slate-800">{t(locale, 'ui.noAssignedClasses')}</h3><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-500">{emptyDescription ?? t(locale, 'ui.contactLabForAssignment')}</p>{emptyAction}</div>;
 }
 
 function Empty({ message }: { message: string }) { return <div className={`${card} px-5 py-12 text-center`}><BookOpen className="mx-auto h-9 w-9 text-slate-300" /><p className="mt-3 text-sm text-slate-500">{message}</p></div>; }
@@ -188,7 +195,7 @@ function CourseList({ data, user, archived = false }: { data: AnyRecord; user: S
     <Heading
       title={t(locale, archived ? 'ui.archives' : 'ui.courseList')}
       description={archived ? t(locale, 'ui.archiveDescription') : data.activeSemester ? copy(locale, 'ui.courseListDescription', { semester: localizedSemesterName(locale, data.activeSemester.name) }) : t(locale, 'ui.noActiveSemester')}
-      actions={user.role === 'Laboran' && !archived ? <Link href="/courses/create" className={primary}><Plus className="h-4 w-4" /> {t(locale, 'ui.createCourse')}</Link> : undefined}
+      actions={canCreateCourse(user.role) && !archived ? <Link href="/courses/create" className={primary}><Plus className="h-4 w-4" /> {t(locale, 'ui.createCourse')}</Link> : undefined}
     />
     {user.role === 'Mahasiswa' && !archived && <form onSubmit={(event) => { event.preventDefault(); action.run({ enrollmentCode: code }, t(locale, 'ui.joinedCourse')); }} className={card + ' mb-5 flex flex-col gap-3 p-4 sm:flex-row'}><input value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} className={inputClass} placeholder={t(locale, 'ui.enrollmentCode')} maxLength={20} required /><button className={primary} disabled={action.pending}><Plus className="h-4 w-4" /> {t(locale, 'ui.joinCourse')}</button></form>}
     <Notice error={Boolean(action.error)}>{action.error}</Notice>
@@ -207,7 +214,7 @@ function CourseList({ data, user, archived = false }: { data: AnyRecord; user: S
             </Link>
             <span className={'shrink-0 rounded-full px-3 py-1 text-xs font-semibold ' + (isArchived ? 'bg-slate-100 text-slate-600' : 'bg-emerald-50 text-emerald-700')}>{isArchived ? t(locale, 'ui.archived') : t(locale, 'ui.active')}</span>
           </div>
-          {user.role === 'Laboran' && !archived && course.enrollmentCode && <div className="mt-4 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-emerald-100 bg-emerald-50/70 px-3 py-2.5"><span className="text-xs font-medium text-slate-600">{t(locale, 'ui.classCode')}</span><code className="break-all font-mono text-sm font-bold tracking-wider text-emerald-900">{course.enrollmentCode}</code></div>}
+          {canViewEnrollmentCode(user.role) && !archived && course.enrollmentCode && <div className="mt-4 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-emerald-100 bg-emerald-50/70 px-3 py-2.5"><span className="text-xs font-medium text-slate-600">{t(locale, 'ui.classCode')}</span><code className="break-all font-mono text-sm font-bold tracking-wider text-emerald-900">{course.enrollmentCode}</code></div>}
           <div className="mt-5 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4">
             <div className="min-w-0"><p className="text-xs text-slate-500">{t(locale, 'ui.lecturer')}</p><p className="mt-1 break-words text-sm font-semibold text-slate-800">{course.dosenName ?? '—'}</p></div>
             <div className="min-w-0"><p className="text-xs text-slate-500">{t(locale, 'ui.labAssistant')}</p><p className="mt-1 break-words text-sm font-semibold text-slate-800">{course.aslabName ?? '—'}</p></div>
@@ -241,11 +248,11 @@ function CourseCreate({ options, editing, staffMode }: { options: AnyRecord; edi
     else mutation.mutate({ ...values, laboranId: String(form.get('laboranId')), moduleCount: Number(form.get('moduleCount')) }, { onSuccess, onError });
   }
   const pending = mutation.isPending || update.isPending || staff.isPending;
-  const select = (name: string, label: string, choices: AnyRecord[], value?: string, disabled = false) => <label className="block"><span className="mb-2 block text-xs font-semibold text-slate-700">{label}</span><select name={name} className={inputClass} required disabled={disabled} defaultValue={value ?? ''}><option value="" disabled>{t(locale, 'ui.select')} {label.toLowerCase()}</option>{choices.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>;
+  const select = (name: string, label: string, choices: AnyRecord[], value?: string | null, disabled = false) => <label className="block"><span className="mb-2 block text-xs font-semibold text-slate-700">{label}</span><select name={disabled ? undefined : name} className={inputClass} required disabled={disabled} defaultValue={value ?? ''}><option value="" disabled>{t(locale, 'ui.select')} {label.toLowerCase()}</option>{choices.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>{disabled && value && <input type="hidden" name={name} value={value} />}</label>;
   const title = staffMode ? t(locale, 'ui.assignStaffTitle') : course ? t(locale, 'ui.editCourseTitle') : t(locale, 'ui.createCourseTitle');
   return <><Heading title={title} description={options.semester ? `${t(locale, 'ui.activeSemester')}: ${localizedSemesterName(locale, options.semester.name)}` : t(locale, 'ui.chooseStaffAndModules')} />
     <form onSubmit={submit} className={`${card} grid gap-5 p-5 sm:grid-cols-2 sm:p-7`}><Notice error>{error}</Notice>{!staffMode && <><label className="block sm:col-span-2"><span className="mb-2 block text-xs font-semibold text-slate-700">{t(locale, 'ui.courseName')}</span><input name="courseName" required maxLength={255} defaultValue={course?.courseName} className={inputClass} /></label><label className="block"><span className="mb-2 block text-xs font-semibold text-slate-700">{t(locale, 'ui.class')}</span><input name="classGroup" required maxLength={50} defaultValue={course?.classGroup} className={inputClass} /></label><label className="block"><span className="mb-2 block text-xs font-semibold text-slate-700">{t(locale, 'ui.studentSemester')}</span><input name="targetSemester" type="number" min={1} max={14} required defaultValue={course?.targetSemester ?? 1} className={inputClass} /></label>{!course && <label className="block"><span className="mb-2 block text-xs font-semibold text-slate-700">{t(locale, 'ui.moduleCount')}</span><input name="moduleCount" type="number" min={1} max={16} required defaultValue={8} className={inputClass} /></label>}</>}
-      {select('dosenId', t(locale, 'ui.lecturer'), options.dosens ?? [], course?.dosenId)}{select('aslabId', t(locale, 'ui.labAssistant'), options.aslabs ?? [], course?.aslabId)}{!staffMode && select('laboranId', t(locale, 'ui.labAdministrator'), options.laborans ?? [], course?.laboranId)}
+      {select('dosenId', t(locale, 'ui.lecturer'), options.dosens ?? [], course?.dosenId)}{select('aslabId', t(locale, 'ui.labAssistant'), options.aslabs ?? [], course?.aslabId ?? options.currentAslabId, !course && Boolean(options.currentAslabId))}{!staffMode && select('laboranId', t(locale, 'ui.labAdministrator'), options.laborans ?? [], course?.laboranId)}
       <div className="flex gap-3 sm:col-span-2"><button className={primary} disabled={pending}>{pending ? t(locale, 'ui.saving') : course ? t(locale, 'ui.saveChanges') : staffMode ? t(locale, 'ui.saveAssignment') : t(locale, 'ui.createCourse')} <Check className="h-4 w-4" /></button><Link href={course ? `/courses/${course.slug}` : '/courses'} className={secondary}>{t(locale, 'ui.cancel')}</Link></div>
     </form>
   </>;
@@ -276,7 +283,7 @@ function CourseDetail({ data, user }: { data: AnyRecord; user: SessionUser }) {
     </div>
     {archived && <Notice>{t(locale, 'ui.courseArchivedReadOnly')}</Notice>}
     <Heading title={`${t(locale, 'ui.practicumDetails')}: ${course.courseName}`} description={`${localizedSemesterName(locale, course.semesterName)} · ${t(locale, 'ui.class')} ${course.classGroup}`} />
-    {user.role === 'Laboran' && course.enrollmentCode && <p className="-mt-4 inline-flex max-w-full flex-wrap items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm"><span className="font-medium text-slate-600">{t(locale, 'ui.enrollment')}</span><code className="break-all font-mono font-bold text-emerald-900">{course.enrollmentCode}</code></p>}
+    {canViewEnrollmentCode(user.role) && course.enrollmentCode && <p className="-mt-4 inline-flex max-w-full flex-wrap items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm"><span className="font-medium text-slate-600">{t(locale, 'ui.enrollment')}</span><code className="break-all font-mono font-bold text-emerald-900">{course.enrollmentCode}</code></p>}
     {course.finalTask && <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
       <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
         <div className="min-w-0 flex-1"><div className="mb-3 flex flex-wrap items-center gap-3"><span className="rounded-lg bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">{locale === 'en' ? 'FINAL ASSIGNMENT' : 'TUGAS PUNCAK'}</span><h2 className="text-xl font-semibold">{t(locale, 'ui.finalAssignment')}</h2></div><p className="max-w-2xl whitespace-pre-wrap text-sm leading-relaxed text-slate-600">{course.finalTask.description}</p>{course.finalTask.deadline && <p className="mt-4 text-xs font-semibold text-slate-500">{t(locale, 'ui.finalDeadline')}: {new Date(course.finalTask.deadline).toLocaleString(dateLocale)}</p>}</div>

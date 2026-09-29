@@ -2,6 +2,7 @@ import { and, count, desc, eq, or, sql } from 'drizzle-orm';
 import { getDb } from '../db';
 import { courses, finalTasks, meetings, semesters, submissions, users } from '../db/schema';
 import { protectedProcedure, router } from '../trpc/init';
+import { canViewEnrollmentCode } from '@/lib/course-permissions';
 
 export const dashboardRouter = router({
   summary: protectedProcedure.query(async ({ ctx }) => {
@@ -89,6 +90,7 @@ export const dashboardRouter = router({
       semesterName: semesters.name, isArchived: sql<boolean>`${courses.isArchived} OR NOT ${semesters.isActive}`,
       studentCount: sql<number>`(SELECT count(*)::int FROM course_user cu WHERE cu.course_id = ${courses.id})`,
       moduleCount: sql<number>`(SELECT count(*)::int FROM meetings m WHERE m.course_id = ${courses.id})`,
+      enrollmentCode: canViewEnrollmentCode(user.role) ? courses.enrollmentCode : sql<string | null>`NULL`,
       dosenName: sql<string | null>`(SELECT u.name FROM users u WHERE u.id = ${courses.dosenId} LIMIT 1)`,
       aslabName: sql<string | null>`(SELECT u.name FROM users u WHERE u.id = ${courses.aslabId} LIMIT 1)`,
       laboranName: sql<string | null>`(SELECT u.name FROM users u WHERE u.id = ${courses.laboranId} LIMIT 1)` })
