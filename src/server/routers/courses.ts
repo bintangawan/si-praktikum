@@ -4,6 +4,7 @@ import { and, asc, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { getCourseBySlug, requireCourseManager, requireCourseStudent, requireCourseView, requireCourseWritable, requireModuleManager } from '../auth/access';
 import { canAssignCourseAslab, COURSE_CREATOR_ROLES, defaultCourseAslabId } from '@/lib/course-permissions';
+import { planCourseModuleChanges, resetCourseModule } from '@/lib/course-module-changes';
 import { getDb } from '../db';
 import { attendances, courseGrades, courseStaffHistories, courseUsers, courses, finalTasks, meetings, semesters, submissionHistories, submissions, users } from '../db/schema';
 import { protectedProcedure, roleProcedure, router } from '../trpc/init';
@@ -295,29 +296,46 @@ export const coursesRouter = router({
   updateModules: roleProcedure('Laboran', 'Aslab').input(z.object({ slug: z.string().min(1), modules: z.array(z.object({
     id: z.number().int().positive().nullable(), title: z.string().trim().min(1).max(255), description: z.string().max(10000).nullable(),
     moduleDriveLink: z.string().url().nullable(), deadline: z.date().nullable(), published: z.boolean(),
-  })).min(1).max(16) })).mutation(async ({ ctx, input }) => {
+  })).max(16), deletedModuleIds: z.array(z.number().int().positive()).max(16).default([]),
+  resetModuleIds: z.array(z.number().int().positive()).max(16).default([]) })).mutation(async ({ ctx, input }) => {
     const course = await requireModuleManager(ctx.user, await getCourseBySlug(input.slug));
     requireCourseWritable(course);
-    const existing = await getDb().select({ id: meetings.id }).from(meetings).where(eq(meetings.courseId, course.id));
-    const expected = new Set(existing.map((meeting) => meeting.id));
-    const submittedIds = input.modules.map((module) => module.id).filter((id): id is number => id !== null).sort((a, b) => a - b);
-    const expectedIds = [...expected].sort((a, b) => a - b);
-    if (submittedIds.length !== expectedIds.length || submittedIds.some((id, index) => id !== expectedIds[index])) {
-      throw new TRPCError({ code: 'BAD_REQUEST', message: 'Daftar modul kelas berubah. Muat ulang halaman lalu coba lagi.' });
+    const existing = await getDb().select({ id: meetings.id, meetingNumber: meetings.meetingNumber, publishedAt: meetings.publishedAt })
+      .from(meetings).where(eq(meetings.courseId, course.id));
+    const submittedIds = input.modules.map((module) => module.id).filter((id): id is number => id !== null);
+    let plan: ReturnType<typeof planCourseModuleChanges>;
+    try {
+      plan = planCourseModuleChanges(existing, submittedIds, input.deletedModuleIds, input.resetModuleIds);
+    } catch (error) {
+      throw new TRPCError({ code: 'BAD_REQUEST', message: error instanceof Error ? error.message : 'Daftar modul tidak valid.' });
     }
-    await getDb().transaction(async (tx) => {
+    const resetIds = new Set(plan.resetIds);
+    const savedModules = await getDb().transaction(async (tx) => {
+      if (plan.resetIds.length) {
+        await tx.delete(submissions).where(inArray(submissions.meetingId, plan.resetIds));
+        await tx.delete(attendances).where(inArray(attendances.meetingId, plan.resetIds));
+      }
+      if (plan.deletedIds.length) {
+        await tx.delete(meetings).where(and(eq(meetings.courseId, course.id), inArray(meetings.id, plan.deletedIds)));
+      }
       const [numberRow] = await tx.select({ maximum: sql<number>`COALESCE(MAX(${meetings.meetingNumber}), 0)` }).from(meetings).where(eq(meetings.courseId, course.id));
       let nextNumber = Number(numberRow?.maximum ?? 0) + 1;
       for (const moduleItem of input.modules) {
-        const publishedAt = moduleItem.published ? new Date() : null;
-        const values = { title: moduleItem.title, description: moduleItem.description, moduleDriveLink: moduleItem.moduleDriveLink,
-          deadline: moduleItem.deadline, publishedAt, updatedAt: new Date() };
-        if (moduleItem.id !== null) await tx.update(meetings).set({ ...values, publishedAt: moduleItem.published ? sql`COALESCE(${meetings.publishedAt}, now())` : null })
+        const current = moduleItem.id === null ? null : existing.find((module) => module.id === moduleItem.id);
+        const isReset = moduleItem.id !== null && resetIds.has(moduleItem.id);
+        const values = isReset && current
+          ? resetCourseModule(current)
+          : { title: moduleItem.title, description: moduleItem.description, moduleDriveLink: moduleItem.moduleDriveLink,
+            deadline: moduleItem.deadline, publishedAt: moduleItem.published ? new Date() : null, updatedAt: new Date() };
+        if (moduleItem.id !== null) await tx.update(meetings).set({ ...values,
+          publishedAt: isReset ? null : moduleItem.published ? sql`COALESCE(${meetings.publishedAt}, now())` : null })
           .where(and(eq(meetings.id, moduleItem.id), eq(meetings.courseId, course.id)));
         else await tx.insert(meetings).values({ ...values, courseId: course.id, meetingNumber: nextNumber++ });
       }
+      const saved = await tx.select().from(meetings).where(eq(meetings.courseId, course.id)).orderBy(asc(meetings.meetingNumber));
+      return saved;
     });
-    return { success: true };
+    return { success: true, modules: savedModules };
   }),
 
   grades: roleProcedure('Dosen', 'Aslab', 'Laboran').input(z.object({ slug: z.string().min(1) })).query(async ({ ctx, input }) => {

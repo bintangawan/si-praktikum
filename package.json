@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "test:course-modules": "tsx --test tests/course-module-changes.test.ts",
     "test:course-permissions": "tsx --test tests/course-permissions.test.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",

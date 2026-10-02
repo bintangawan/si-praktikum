@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Fragment, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
-import { ArrowDownToLine, ArrowLeft, ArrowRight, BookOpen, CalendarDays, Check, Clock3, Download, FileText, GraduationCap, LockKeyhole, LockKeyholeOpen, Plus, Printer, Search, Users } from 'lucide-react';
+import { ArrowDownToLine, ArrowLeft, ArrowRight, BookOpen, CalendarDays, Check, Clock3, Download, FileText, GraduationCap, LockKeyhole, LockKeyholeOpen, Plus, Printer, RotateCcw, Search, Trash2, Users } from 'lucide-react';
 import type { SessionUser } from '@/server/auth/session';
 import { trpc } from '@/trpc/react';
 import { appName } from '@/lib/app-config';
@@ -260,6 +260,9 @@ function CourseCreate({ options, editing, staffMode }: { options: AnyRecord; edi
 
 function CourseDetail({ data, user }: { data: AnyRecord; user: SessionUser }) {
   const locale = useLocale();
+  const router = useRouter();
+  const deleteCourse = trpc.courses.delete.useMutation();
+  const [deleteError, setDeleteError] = useState('');
   const course = data;
   const isManager = user.role === 'Laboran' || (user.role === 'Dosen' && user.id === course.dosenId) || (user.role === 'Aslab' && user.id === course.aslabId);
   const archived = Boolean(course.isArchived || !course.semesterIsActive);
@@ -279,8 +282,26 @@ function CourseDetail({ data, user }: { data: AnyRecord; user: SessionUser }) {
     <div className="flex flex-wrap items-center gap-2">
       <Link href={archived ? '/arsip' : '/courses'} className={secondary}><ArrowLeft className="h-4 w-4" /> {t(locale, 'ui.backToDashboard')}</Link>
       {canEditModules && <Link href={`/courses/${course.slug}/modules/edit`} className={primary}>{t(locale, 'ui.manageModules')}</Link>}
-      {user.role === 'Laboran' && !archived && <><Link href={`/courses/${course.slug}/edit`} className={secondary}>{t(locale, 'ui.editCourse')}</Link><Link href={`/courses/${course.slug}/staff`} className={secondary}>{t(locale, 'ui.staff')}</Link></>}
+      {user.role === 'Laboran' && <>
+        {!archived && <><Link href={`/courses/${course.slug}/edit`} className={secondary}>{t(locale, 'ui.editCourse')}</Link><Link href={`/courses/${course.slug}/staff`} className={secondary}>{t(locale, 'ui.staff')}</Link></>}
+        <button type="button" className="inline-flex items-center justify-center gap-2 rounded-xl border border-rose-200 bg-white px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60" disabled={deleteCourse.isPending}
+          onClick={() => { void confirmAppAction(t(locale, 'ui.deleteCourseConfirm'), copy(locale, 'ui.deleteCourseText', { name: course.courseName }), 'warning', locale).then((confirmed) => {
+            if (!confirmed) return;
+            setDeleteError('');
+            deleteCourse.mutate({ slug: course.slug }, {
+              onSuccess: async () => {
+                await showAppAlert('success', t(locale, 'ui.courseDeletedTitle'), t(locale, 'ui.courseDeletedText'), locale);
+                router.replace('/courses');
+              },
+              onError: (reason) => setDeleteError(localizeServerMessage(locale, reason.message)),
+            });
+          }); }}>
+          {deleteCourse.isPending ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-rose-300 border-t-rose-700" /> : <Trash2 className="h-4 w-4" />}
+          {deleteCourse.isPending ? t(locale, 'ui.deleting') : t(locale, 'ui.deleteCourse')}
+        </button>
+      </>}
     </div>
+    <Notice error>{deleteError}</Notice>
     {archived && <Notice>{t(locale, 'ui.courseArchivedReadOnly')}</Notice>}
     <Heading title={`${t(locale, 'ui.practicumDetails')}: ${course.courseName}`} description={`${localizedSemesterName(locale, course.semesterName)} · ${t(locale, 'ui.class')} ${course.classGroup}`} />
     {canViewEnrollmentCode(user.role) && course.enrollmentCode && <p className="-mt-4 inline-flex max-w-full flex-wrap items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm"><span className="font-medium text-slate-600">{t(locale, 'ui.enrollment')}</span><code className="break-all font-mono font-bold text-emerald-900">{course.enrollmentCode}</code></p>}
@@ -1176,12 +1197,16 @@ function ModuleEditor({ data }: { data: AnyRecord }) {
     moduleDriveLink: row.moduleDriveLink ?? '',
     deadline: row.deadline ? toLocalDateTime(row.deadline) : '',
     published: Boolean(row.publishedAt),
+    openedBefore: Boolean(row.publishedAt),
   })));
   const mutation = trpc.courses.updateModules.useMutation();
   const router = useRouter();
+  const [deletedModuleIds, setDeletedModuleIds] = useState<number[]>([]);
+  const [resetModuleIds, setResetModuleIds] = useState<number[]>([]);
+  const [error, setError] = useState('');
   const openCount = modules.filter((row) => row.published).length;
   const closedCount = modules.length - openCount;
-  const nextNumber = Math.max(0, ...modules.map((item) => Number(item.meetingNumber))) + 1;
+  const nextNumber = Math.max(0, ...data.meetings.map((item: AnyRecord) => Number(item.meetingNumber)), ...modules.map((item) => Number(item.meetingNumber))) + 1;
 
   function change(index: number, key: string, value: string | boolean) {
     setModules((current) => current.map((row, i) => i === index ? { ...row, [key]: value } : row));
@@ -1200,11 +1225,47 @@ function ModuleEditor({ data }: { data: AnyRecord }) {
       moduleDriveLink: '',
       deadline: '',
       published: false,
+      openedBefore: false,
     }]);
+  }
+
+  function removeModule(index: number) {
+    const row = modules[index];
+    if (!row) return;
+    const text = t(locale, row.openedBefore || row.published ? 'module.deletePublishedText' : 'module.deleteUnopenedText');
+    void confirmAppAction(t(locale, 'module.deleteConfirm'), text, 'warning', locale).then((confirmed) => {
+      if (!confirmed) return;
+      const id = row.id === null ? null : Number(row.id);
+      if (id !== null) {
+        setDeletedModuleIds((current) => current.includes(id) ? current : [...current, id]);
+        setResetModuleIds((current) => current.filter((resetId) => resetId !== id));
+      }
+      setModules((current) => current.filter((_, currentIndex) => currentIndex !== index));
+    });
+  }
+
+  function resetModule(index: number) {
+    const row = modules[index];
+    if (!row || row.id === null || !row.openedBefore || row.resetPending) return;
+    void confirmAppAction(t(locale, 'module.clearConfirm'), t(locale, 'module.clearText'), 'warning', locale).then((confirmed) => {
+      if (!confirmed) return;
+      const id = Number(row.id);
+      setResetModuleIds((current) => current.includes(id) ? current : [...current, id]);
+      setModules((current) => current.map((item, currentIndex) => currentIndex === index ? {
+        ...item,
+        title: `Modul ${item.meetingNumber}`,
+        description: '',
+        moduleDriveLink: '',
+        deadline: '',
+        published: false,
+        resetPending: true,
+      } : item));
+    });
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    setError('');
     mutation.mutate({
       slug: data.slug,
       modules: modules.map((row) => ({
@@ -1215,7 +1276,24 @@ function ModuleEditor({ data }: { data: AnyRecord }) {
         deadline: row.deadline ? new Date(row.deadline) : null,
         published: Boolean(row.published),
       })),
-    }, { onSuccess: () => router.refresh() });
+      deletedModuleIds,
+      resetModuleIds,
+    }, { onSuccess: async (result) => {
+      setModules(result.modules.map((row: AnyRecord) => ({
+        id: row.id,
+        meetingNumber: row.meetingNumber,
+        title: row.title,
+        description: row.description ?? '',
+        moduleDriveLink: row.moduleDriveLink ?? '',
+        deadline: row.deadline ? toLocalDateTime(row.deadline) : '',
+        published: Boolean(row.publishedAt),
+        openedBefore: Boolean(row.publishedAt),
+      })));
+      setDeletedModuleIds([]);
+      setResetModuleIds([]);
+      await showAppAlert('success', t(locale, 'module.savedTitle'), t(locale, 'module.savedText'), locale);
+      router.refresh();
+    }, onError: (reason) => setError(localizeServerMessage(locale, reason.message)) });
   }
 
   const saveButton = () => <button type="submit" form="module-editor-form" className={primary} disabled={mutation.isPending}>
@@ -1227,9 +1305,10 @@ function ModuleEditor({ data }: { data: AnyRecord }) {
       eyebrow={t(locale, 'module.eyebrow')}
       title={`${t(locale, 'module.title')} · ${data.courseName}`}
       description={t(locale, 'module.description')}
-      actions={<div className="flex flex-col gap-2 2xl:flex-row 2xl:items-center"><Link href={`/courses/${data.slug}`} className={secondary}><ArrowLeft className="h-4 w-4" />{t(locale, 'module.back')}</Link><button type="button" className={secondary} onClick={addModule} disabled={modules.length >= 16} title={modules.length >= 16 ? t(locale, 'module.limitText') : undefined}><Plus className="h-4 w-4" />{t(locale, 'module.add')}</button>{modules.length >= 16 && <p className="max-w-48 text-xs leading-5 text-slate-500">{t(locale, 'module.limitText')}</p>}{saveButton()}</div>}
+      actions={<div className="flex flex-col gap-2 2xl:flex-row 2xl:items-center"><Link href={`/courses/${data.slug}`} className={secondary}><ArrowLeft className="h-4 w-4" />{t(locale, 'module.back')}</Link><button type="button" className={secondary} onClick={addModule} disabled={mutation.isPending || modules.length >= 16} title={modules.length >= 16 ? t(locale, 'module.limitText') : undefined}><Plus className="h-4 w-4" />{t(locale, 'module.add')}</button>{modules.length >= 16 && <p className="max-w-48 text-xs leading-5 text-slate-500">{t(locale, 'module.limitText')}</p>}{saveButton()}</div>}
     />
 
+    <Notice error>{error}</Notice>
     <div className="mb-5 grid gap-3 sm:grid-cols-3" aria-label={locale === 'id' ? 'Ringkasan modul' : 'Module summary'}>
       <div className={`${card} flex items-center gap-3 px-4 py-3`}><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700"><BookOpen className="h-5 w-5" /></span><div><p className="text-xl font-bold leading-none text-slate-900">{modules.length}</p><p className="mt-1 text-xs font-medium text-slate-600">{t(locale, 'module.count')}</p></div></div>
       <div className={`${card} flex items-center gap-3 px-4 py-3`}><span className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-50 text-emerald-800"><LockKeyholeOpen className="h-5 w-5" /></span><div><p className="text-xl font-bold leading-none text-slate-900">{openCount}</p><p className="mt-1 text-xs font-medium text-slate-600">{t(locale, 'module.openCount')}</p></div></div>
@@ -1240,13 +1319,22 @@ function ModuleEditor({ data }: { data: AnyRecord }) {
       {modules.map((row, index) => {
         const status = row.published ? 'module.open' : 'module.closed';
         const switchLabel = `${t(locale, 'module.cardLabel')} ${row.meetingNumber} · ${t(locale, 'module.submission')}: ${t(locale, status)}`;
-        return <section key={row.id ?? `new-${index}`} className={`${card} overflow-hidden p-4 sm:p-6`}>
+        return <section key={row.id ?? `new-${row.meetingNumber}`} className={`${card} overflow-hidden p-4 sm:p-6`}>
           <div className="flex flex-col gap-4 border-b border-slate-100 pb-5 md:flex-row md:items-start md:justify-between">
             <div className="min-w-0">
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">{t(locale, 'module.cardLabel')} {String(row.meetingNumber).padStart(2, '0')}</p>
               <h2 className="mt-1 text-lg font-semibold text-slate-900">{localizedModuleTitle(locale, row.title, row.meetingNumber)}</h2>
             </div>
-            <div className={`flex w-full items-center justify-between gap-4 rounded-xl border p-3 md:w-auto md:min-w-[330px] ${row.published ? 'border-emerald-200 bg-emerald-50/70' : 'border-slate-200 bg-slate-50'}`}>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+              <div className="flex flex-wrap gap-2">
+                {row.openedBefore && row.id !== null && !row.resetPending && <button type="button" className="inline-flex items-center gap-2 rounded-xl border border-amber-200 bg-white px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-60" onClick={() => resetModule(index)} disabled={mutation.isPending}>
+                  <RotateCcw className="h-4 w-4" />{t(locale, 'module.clearModule')}
+                </button>}
+                <button type="button" aria-label={`${t(locale, 'module.deleteModule')} ${row.meetingNumber}`} title={t(locale, 'module.deleteModule')} className="inline-flex items-center gap-2 rounded-xl border border-rose-200 bg-white px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:cursor-not-allowed disabled:opacity-60" onClick={() => removeModule(index)} disabled={mutation.isPending}>
+                  <Trash2 className="h-4 w-4" />{t(locale, 'module.deleteModule')}
+                </button>
+              </div>
+              <div className={`flex w-full items-center justify-between gap-4 rounded-xl border p-3 sm:w-auto sm:min-w-[330px] ${row.published ? 'border-emerald-200 bg-emerald-50/70' : 'border-slate-200 bg-slate-50'}`}>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
                   <span className={`h-2 w-2 shrink-0 rounded-full ${row.published ? 'bg-emerald-600' : 'bg-slate-400'}`} />
@@ -1255,31 +1343,32 @@ function ModuleEditor({ data }: { data: AnyRecord }) {
                 </div>
                 <p className="mt-1 max-w-64 text-xs leading-5 text-slate-600">{t(locale, row.published ? 'module.openHelp' : 'module.closedHelp')}</p>
               </div>
-              <button type="button" role="switch" aria-checked={Boolean(row.published)} aria-label={switchLabel} onClick={() => change(index, 'published', !row.published)} className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full p-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2 ${row.published ? 'bg-emerald-700' : 'bg-slate-400'}`}>
+              <button type="button" role="switch" aria-checked={Boolean(row.published)} aria-label={switchLabel} onClick={() => change(index, 'published', !row.published)} disabled={mutation.isPending || Boolean(row.resetPending)} className={`relative inline-flex h-7 w-12 shrink-0 items-center rounded-full p-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-700 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${row.published ? 'bg-emerald-700' : 'bg-slate-400'}`}>
                 <span className={`h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${row.published ? 'translate-x-5' : 'translate-x-0'}`} />
               </button>
+            </div>
             </div>
           </div>
 
           <div className="grid gap-x-5 gap-y-4 pt-5 md:grid-cols-2">
-            <label className="block">
+        <label className="block">
               <span className="mb-1.5 block text-sm font-semibold text-slate-800">{t(locale, 'module.titleField')} <span className="text-rose-700" aria-label={locale === 'id' ? 'wajib' : 'required'}>*</span></span>
-              <input className={inputClass} value={localizedModuleTitle(locale, row.title, row.meetingNumber)} onChange={(event) => change(index, 'title', event.target.value)} maxLength={255} required />
+              <input className={inputClass} value={localizedModuleTitle(locale, row.title, row.meetingNumber)} onChange={(event) => change(index, 'title', event.target.value)} maxLength={255} required disabled={mutation.isPending || Boolean(row.resetPending)} />
               <span className="mt-1.5 block text-xs text-slate-500">{t(locale, 'module.titleHint')}</span>
             </label>
             <label className="block">
               <span className="mb-1.5 block text-sm font-semibold text-slate-800">{t(locale, 'module.deadline')} <span className="ml-1 font-normal text-slate-500">({t(locale, 'module.optional')})</span></span>
-              <input type="datetime-local" className={inputClass} value={row.deadline} onChange={(event) => change(index, 'deadline', event.target.value)} />
+              <input type="datetime-local" className={inputClass} value={row.deadline} onChange={(event) => change(index, 'deadline', event.target.value)} disabled={mutation.isPending || Boolean(row.resetPending)} />
               <span className="mt-1.5 block text-xs text-slate-500">{t(locale, 'module.deadlineHint')}</span>
             </label>
             <label className="block md:col-span-2">
               <span className="mb-1.5 block text-sm font-semibold text-slate-800">{t(locale, 'module.material')} <span className="ml-1 font-normal text-slate-500">({t(locale, 'module.optional')})</span></span>
-              <input type="url" className={inputClass} value={row.moduleDriveLink} onChange={(event) => change(index, 'moduleDriveLink', event.target.value)} placeholder="https://drive.google.com/..." />
+              <input type="url" className={inputClass} value={row.moduleDriveLink} onChange={(event) => change(index, 'moduleDriveLink', event.target.value)} placeholder="https://drive.google.com/..." disabled={mutation.isPending || Boolean(row.resetPending)} />
               <span className="mt-1.5 block text-xs text-slate-500">{t(locale, 'module.materialHint')}</span>
             </label>
             <label className="block md:col-span-2">
               <span className="mb-1.5 block text-sm font-semibold text-slate-800">{t(locale, 'module.descriptionField')} <span className="ml-1 font-normal text-slate-500">({t(locale, 'module.optional')})</span></span>
-              <textarea className={inputClass} rows={4} maxLength={10000} value={row.description} onChange={(event) => change(index, 'description', event.target.value)} />
+              <textarea className={inputClass} rows={4} maxLength={10000} value={row.description} onChange={(event) => change(index, 'description', event.target.value)} disabled={mutation.isPending || Boolean(row.resetPending)} />
               <span className="mt-1.5 block text-xs text-slate-500">{t(locale, 'module.descriptionHint')}</span>
             </label>
           </div>
