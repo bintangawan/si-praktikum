@@ -18,7 +18,14 @@ export async function FeaturePage({ segments, view, archive, studentId }: { segm
   else if (head === 'courses' && segments[1] && segments[2] === 'print-card') { page = 'print-card'; data = await caller.courses.printCardData({ slug: segments[1] }); }
   else if (head === 'courses' && segments[1] && segments[2] === 'grades') { page = 'grades'; data = { slug: segments[1], course: await caller.courses.get({ slug: segments[1] }), rows: await caller.courses.grades({ slug: segments[1] }) }; }
   else if (head === 'courses' && segments[1] && segments[2] === 'students') { page = 'students'; data = { slug: segments[1], ...(await caller.courses.students({ slug: segments[1] })) }; }
-  else if (head === 'courses' && segments[1] && segments[2] === 'attendance-report') { page = 'attendance-report'; data = await caller.attendance.report({ slug: segments[1] }); }
+  else if (head === 'courses' && segments[1] && segments[2] === 'attendance-report') {
+    page = 'laprak-report';
+    const [course, rows] = await Promise.all([
+      caller.courses.get({ slug: segments[1] }),
+      caller.courses.grades({ slug: segments[1] }),
+    ]);
+    data = { course, rows };
+  }
   else if (head === 'courses' && segments[1] && segments[2] === 'modules' && segments[3] === 'edit') { page = 'module-editor'; data = await caller.courses.get({ slug: segments[1] }); }
   else if (head === 'courses' && segments[1] && segments[2] === 'edit') { page = 'course-edit'; data = { course: await caller.courses.get({ slug: segments[1] }), options: await caller.courses.createOptions() }; }
   else if (head === 'courses' && segments[1] && segments[2] === 'staff') { page = 'course-staff'; data = { course: await caller.courses.get({ slug: segments[1] }), options: await caller.courses.createOptions() }; }

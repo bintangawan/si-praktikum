@@ -12,6 +12,7 @@ import { confirmAppAction, promptAppText, showAppAlert } from '@/lib/alerts';
 import { localizeServerMessage, t } from '@/lib/locale';
 import { useLocale } from '@/lib/locale-context';
 import type { GradeExportCourse, GradeExportRow } from '@/lib/grade-export';
+import { LaprakReport, type LaprakReportData } from './LaprakReport';
 import { canCreateCourse, canViewEnrollmentCode } from '@/lib/course-permissions';
 
 // Server DTOs are intentionally treated as dynamic records at this shared view boundary.
@@ -175,7 +176,7 @@ function AssignedCourseCards({ courses, showEnrollmentCode = false, emptyDescrip
         </div>
         <div className={`grid grid-cols-1 gap-2 border-t border-slate-100 bg-slate-50/70 p-4 ${isActive ? 'sm:grid-cols-3' : ''}`}>
           <Link href={`/courses/${course.slug}`} className={`${primary} text-xs sm:col-span-3`}>{t(locale, 'ui.openCourse')}<ArrowRight className="h-4 w-4" /></Link>
-          {isActive && <><Link href={`/courses/${course.slug}/grades`} className={`${secondary} text-xs`}>{t(locale, 'ui.grading')}</Link><Link href={`/courses/${course.slug}/students`} className={`${secondary} text-xs`}>{t(locale, 'ui.studentList')}</Link><Link href={`/courses/${course.slug}/attendance-report`} className={`${secondary} text-xs`}>{t(locale, 'ui.attendanceSummary')}</Link></>}
+          {isActive && <><Link href={`/courses/${course.slug}/grades`} className={`${secondary} text-xs`}>{t(locale, 'ui.grading')}</Link><Link href={`/courses/${course.slug}/students`} className={`${secondary} text-xs`}>{t(locale, 'ui.studentList')}</Link><Link href={`/courses/${course.slug}/attendance-report`} className={`${secondary} text-xs`}>{t(locale, 'ui.laprakSummary')}</Link></>}
         </div>
       </article>;
     })}
@@ -326,7 +327,7 @@ function CourseDetail({ data, user }: { data: AnyRecord; user: SessionUser }) {
             <div className="mb-3 h-2 overflow-hidden rounded-full bg-slate-200"><div className={`h-full rounded-full ${attendancePercentage >= 75 ? 'bg-emerald-500' : attendancePercentage >= 50 ? 'bg-amber-500' : 'bg-rose-500'}`} style={{ width: `${attendancePercentage}%` }} /></div>
             <p className="text-right text-xs font-semibold text-slate-500">{copy(locale, 'ui.meetingsOf', { present: attendedMeetings.length, total: conductedMeetings.length })}</p>
           </div>
-        </div> : <div className="mt-7 border-t border-slate-100 pt-6"><Link href={`/courses/${course.slug}/attendance-report`} className={`${secondary} w-full justify-center`}>{t(locale, 'ui.attendanceSummary')}</Link></div>}
+        </div> : <div className="mt-7 border-t border-slate-100 pt-6"><Link href={`/courses/${course.slug}/attendance-report`} className={`${secondary} w-full justify-center`}>{t(locale, 'ui.laprakSummary')}</Link></div>}
         {isManager && <Link href={`/courses/${course.slug}/students`} className={`${secondary} mt-3 w-full justify-center`}>{t(locale, 'ui.participantsInCourse')}</Link>}
         {user.role === 'Mahasiswa' && <Link href={`/courses/${course.slug}/print-card`} target="_blank" className={`${secondary} mt-3 w-full justify-center`}><Printer className="h-4 w-4" />{t(locale, 'ui.printPracticumCard')}</Link>}
       </div>
@@ -1388,25 +1389,6 @@ function toLocalDateTime(value: string | Date) {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 }
 
-function AttendanceReport({ data }: { data: AnyRecord }) {
-  const locale = useLocale();
-  const students: AnyRecord[] = data.report ?? [];
-  const statusLabel = (code: string) => code === 'H' ? t(locale, 'ui.presentCount') : code === 'S' ? t(locale, 'ui.sickCount') : code === 'I' ? t(locale, 'ui.excusedCount') : code === 'TK' ? t(locale, 'ui.unexcusedCount') : t(locale, 'ui.notMarked');
-  const statusCode = (code: string) => locale === 'en' ? ({ H: 'P', S: 'S', I: 'E', TK: 'U' }[code] ?? '—') : code;
-  function exportCsv() {
-    const header = [t(locale, 'ui.idStudent'), t(locale, 'ui.student'), ...data.meetings.map((meeting: AnyRecord) => `${locale === 'en' ? 'M' : 'P'}${meeting.number}`), t(locale, 'ui.presentCount'), t(locale, 'ui.sickCount'), t(locale, 'ui.excusedCount'), t(locale, 'ui.unexcusedCount'), t(locale, 'ui.percentage'), t(locale, 'ui.status')];
-    const body = students.map((student) => [student.id, student.name, ...data.meetings.map((meeting: AnyRecord) => statusCode(student.perMeetingStatus[meeting.id] ?? '—')), student.present, student.sick, student.excused, student.unexcused, `${student.percentage}%`, t(locale, student.percentage >= 75 ? 'ui.statusSafe' : 'ui.statusWarning')]);
-    const csv = [header, ...body].map((line: unknown[]) => line.map((value: unknown) => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\r\n');
-    const url = URL.createObjectURL(new Blob(['\ufeff', csv], { type: 'text/csv;charset=utf-8' })); const anchor = document.createElement('a'); anchor.href = url; anchor.download = locale === 'en' ? `attendance-report-${data.courseSlug}.csv` : `rekap-presensi-${data.courseSlug}.csv`; anchor.click(); URL.revokeObjectURL(url);
-  }
-  return <>
-    <Heading title={`${t(locale, 'ui.attendanceSummary')}: ${data.courseName}`} description={t(locale, 'ui.attendanceReportDescription')} actions={<div className="flex flex-wrap gap-2"><Link href={`/courses/${data.courseSlug}`} className={secondary}><ArrowLeft className="h-4 w-4" />{t(locale, 'ui.backToCourseDetails')}</Link><button onClick={exportCsv} className={secondary}><Download className="h-4 w-4" />{t(locale, 'ui.exportExcelCsv')}</button><button onClick={() => window.print()} className={secondary}><Printer className="h-4 w-4" />{t(locale, 'ui.printPdf')}</button></div>} />
-    <div className={`${card} overflow-x-auto print:border-0 print:shadow-none`}><table className="w-full min-w-max border-collapse text-left text-xs"><thead><tr className="border-b border-slate-100 bg-slate-50 text-xs font-semibold text-slate-500"><th className="sticky left-0 min-w-[200px] bg-slate-50 px-5 py-4">{t(locale, 'ui.students')}</th>{data.meetings.map((meeting: AnyRecord) => <th className="whitespace-nowrap px-3 py-4 text-center" key={meeting.id} title={localizedModuleTitle(locale, meeting.title, meeting.number)}>{locale === 'en' ? 'M' : 'P'}{meeting.number}</th>)}<th className="bg-slate-100/50 px-4 py-4 text-center" title={t(locale, 'ui.presentCount')}>{locale === 'en' ? 'P' : 'H'}</th><th className="bg-slate-100/50 px-4 py-4 text-center" title={t(locale, 'ui.sickCount')}>S</th><th className="bg-slate-100/50 px-4 py-4 text-center" title={t(locale, 'ui.excusedCount')}>{locale === 'en' ? 'E' : 'I'}</th><th className="bg-slate-100/50 px-4 py-4 text-center" title={t(locale, 'ui.unexcusedCount')}>{locale === 'en' ? 'U' : 'TK'}</th><th className="px-5 py-4 text-center">{t(locale, 'ui.percentage')}</th><th className="px-5 py-4 text-center">{t(locale, 'ui.status')}</th></tr></thead>
-      <tbody className="divide-y divide-slate-100">{students.map((student) => <tr key={student.id} className="transition hover:bg-slate-50/50"><td className="sticky left-0 bg-white px-5 py-4"><div className="flex flex-col"><span className="text-sm font-bold text-slate-800">{student.name}</span><span className="text-xs text-slate-400">{student.id}</span></div></td>{data.meetings.map((meeting: AnyRecord) => { const code = student.perMeetingStatus[meeting.id] ?? '—'; return <td key={meeting.id} className="px-2 py-4 text-center"><span title={statusLabel(code)} aria-label={statusLabel(code)} className={`inline-flex h-6 min-w-6 items-center justify-center rounded-md px-1 text-xs font-semibold ${code === 'H' ? 'bg-emerald-100 text-emerald-700' : code === 'S' || code === 'I' ? 'bg-amber-100 text-amber-700' : code === 'TK' ? 'bg-rose-100 text-rose-700' : 'bg-slate-100 text-slate-400'}`}>{statusCode(code)}</span></td>; })}<td className="bg-slate-50/30 px-4 py-4 text-center text-sm font-bold text-emerald-700">{student.present}</td><td className="bg-slate-50/30 px-4 py-4 text-center text-sm font-bold text-amber-700">{student.sick}</td><td className="bg-slate-50/30 px-4 py-4 text-center text-sm font-bold text-amber-600">{student.excused}</td><td className="bg-slate-50/30 px-4 py-4 text-center text-sm font-bold text-rose-700">{student.unexcused}</td><td className="px-5 py-4 text-center"><div className="flex items-center justify-center gap-2"><div className="h-1.5 w-12 rounded-full bg-slate-100"><div className={`h-1.5 rounded-full ${student.percentage >= 75 ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${student.percentage}%` }} /></div><span className="text-xs font-bold text-slate-700">{student.percentage}%</span></div></td><td className="px-5 py-4 text-center"><span className={`rounded px-2 py-1 text-xs font-semibold ${student.percentage >= 75 ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>{t(locale, student.percentage >= 75 ? 'ui.statusSafe' : 'ui.statusWarning')}</span></td></tr>)}{!students.length && <tr><td colSpan={data.meetings.length + 7} className="px-6 py-14 text-center text-sm text-slate-500">{t(locale, 'ui.noParticipants')}</td></tr>}</tbody>
-    </table></div>
-  </>;
-}
-
 function UserManager({ currentUserId }: { currentUserId: string }) {
   const locale = useLocale();
   const router = useRouter();
@@ -1648,7 +1630,7 @@ export function FeatureContent({ page, user, data }: { page: string; user: Sessi
     case 'grades': return <CourseGrades rows={result.rows} slug={result.slug} course={result.course} user={user} />;
     case 'students': return <StudentManager slug={result.slug} courseName={result.courseName} classGroup={result.classGroup} isArchived={result.isArchived} students={result.students as AnyRecord[]} user={user} />;
     case 'module-editor': return <ModuleEditor data={result} />;
-    case 'attendance-report': return <AttendanceReport data={result} />;
+    case 'laprak-report': return <LaprakReport data={result as unknown as LaprakReportData} />;
     case 'users': return <UserManager currentUserId={user.id} />;
     case 'import-users': return <ImportUsers />;
     case 'final-task': return <FinalTaskManager data={result} />;
