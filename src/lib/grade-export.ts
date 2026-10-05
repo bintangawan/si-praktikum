@@ -48,6 +48,8 @@ type ExportModule = {
   isCompleted: boolean;
   hasAslabScore: boolean;
   hasLaboranScore: boolean;
+  aslabStatus?: string;
+  laboranStatus?: string;
   aslabScore: number | string | null;
   laboranScore: number | string | null;
   score: number | null;

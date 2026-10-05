@@ -155,8 +155,13 @@ export function createLaprakWorkbook(rows: GradeExportRow[], course: LaprakExpor
   rows.forEach((student, index) => {
     const cells = displayedModules.map((displayModule) => {
       const moduleGrade = student.modules.find((item) => item.meetingNumber === displayModule.meetingNumber);
-      if (!moduleGrade?.hasSubmission) return '—';
-      return `✓\n${moduleGrade.score === null ? localized(copy, 'waitingScore') : Number(moduleGrade.score).toFixed(2)}`;
+      if (!moduleGrade) return '—';
+      if (moduleGrade.score !== null) return `${moduleGrade.hasSubmission ? '✓\n' : ''}${Number(moduleGrade.score).toFixed(2)}`;
+      const enteredScores = [
+        moduleGrade.hasAslabScore ? `${copy.assistantScore}: ${Number(moduleGrade.aslabScore).toFixed(2)}` : '',
+        moduleGrade.hasLaboranScore ? `${copy.administratorScore}: ${Number(moduleGrade.laboranScore).toFixed(2)}` : '',
+      ].filter(Boolean);
+      return enteredScores.length ? enteredScores.join('\n') : '—';
     });
     const row = summary.addRow([
       index + 1, student.id, student.name, ...cells,
@@ -168,7 +173,7 @@ export function createLaprakWorkbook(rows: GradeExportRow[], course: LaprakExpor
       const item = student.modules.find((module) => module.meetingNumber === displayModule.meetingNumber);
       const cell = row.getCell(4 + moduleIndex);
       cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-      if (item?.hasSubmission) {
+      if (item?.hasSubmission || item?.hasAslabScore || item?.hasLaboranScore) {
         cell.font = { name: 'Aptos', size: 9, bold: true, color: { argb: 'FF047857' } };
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFECFDF5' } };
       } else {
@@ -209,7 +214,8 @@ export function createLaprakWorkbook(rows: GradeExportRow[], course: LaprakExpor
     const moduleGrade = student.modules.find((item) => item.meetingNumber === displayModule.meetingNumber);
     const submitted = Boolean(moduleGrade?.hasSubmission);
     const graded = Boolean(moduleGrade?.isCompleted && moduleGrade.hasAslabScore && moduleGrade.hasLaboranScore);
-    const status = !submitted ? copy.notSubmitted : graded ? copy.complete : copy.pending;
+    const hasManualGrade = Boolean(moduleGrade?.hasAslabScore || moduleGrade?.hasLaboranScore);
+    const status = !submitted && !hasManualGrade ? copy.notSubmitted : graded ? copy.complete : copy.pending;
     const row = details.addRow([
       detailIndex + 1, student.id, student.name, displayModule.meetingNumber,
       displayModule.meetingTitle || localized(copy, 'unnamedModule', displayModule.meetingNumber),

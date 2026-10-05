@@ -244,4 +244,125 @@ export const usersRouter = router({
     }
     return { success, failures };
   }),
+
+  importStudents: roleProcedure('Laboran').input(z.object({ rows: z.array(z.object({
+    rowNumber: z.number().int().positive(),
+    id: z.string().trim().max(20),
+    name: z.string().trim().max(255),
+  })).min(1).max(1000) })).mutation(async ({ input, ctx }) => {
+    const db = getDb();
+    const now = new Date();
+    const success: Array<{ id: string; name: string; status: 'created' | 'approved' | 'already_approved' }> = [];
+    const failures: Array<{ rowNumber: number; id: string; reason: 'incomplete' | 'duplicate' | 'not_student' | 'name_mismatch' | 'email_conflict' | 'account_changed' }> = [];
+    const seenIds = new Set<string>();
+    const rows: Array<{ rowNumber: number; id: string; name: string; email: string }> = [];
+
+    for (const row of input.rows) {
+      const id = row.id.trim();
+      const name = row.name.trim().replace(/\s+/g, ' ');
+      if (!id || !name || id.length > 20 || name.length < 2) {
+        failures.push({ rowNumber: row.rowNumber, id, reason: 'incomplete' });
+        continue;
+      }
+      if (seenIds.has(id)) {
+        failures.push({ rowNumber: row.rowNumber, id, reason: 'duplicate' });
+        continue;
+      }
+      seenIds.add(id);
+      // The schema requires an email, while these roster-created accounts sign in with NIM.
+      // The reserved .invalid domain prevents messages from being sent to a guessed address.
+      rows.push({ rowNumber: row.rowNumber, id, name, email: `${Buffer.from(id, 'utf8').toString('hex')}@students.si-praktikum.invalid` });
+    }
+
+    if (!rows.length) return { success, failures };
+    const existing = await db.select({ id: users.id, name: users.name, email: users.email, role: users.role, approvedAt: users.approvedAt })
+      .from(users).where(or(inArray(users.id, rows.map((row) => row.id)), inArray(users.email, rows.map((row) => row.email))));
+    const existingById = new Map(existing.map((row) => [row.id, row]));
+    const existingByEmail = new Map(existing.map((row) => [row.email, row]));
+    const normalizeName = (name: string) => name.trim().replace(/\s+/g, ' ').toLocaleLowerCase();
+    const toInsert: typeof rows = [];
+    const toApprove: typeof rows = [];
+
+    for (const row of rows) {
+      const account = existingById.get(row.id);
+      if (account) {
+        if (account.role !== 'Mahasiswa') failures.push({ rowNumber: row.rowNumber, id: row.id, reason: 'not_student' });
+        else if (normalizeName(account.name) !== normalizeName(row.name)) failures.push({ rowNumber: row.rowNumber, id: row.id, reason: 'name_mismatch' });
+        else if (account.approvedAt) success.push({ id: row.id, name: account.name, status: 'already_approved' });
+        else toApprove.push(row);
+      } else if (existingByEmail.has(row.email)) {
+        failures.push({ rowNumber: row.rowNumber, id: row.id, reason: 'email_conflict' });
+      } else {
+        toInsert.push(row);
+      }
+    }
+
+    for (let offset = 0; offset < toApprove.length; offset += 200) {
+      const batch = toApprove.slice(offset, offset + 200);
+      const approved = await db.update(users).set({ approvedAt: now, approvedBy: ctx.user.id, updatedAt: now })
+        .where(and(inArray(users.id, batch.map((row) => row.id)), eq(users.role, 'Mahasiswa'), isNull(users.approvedAt)))
+        .returning({ id: users.id, name: users.name });
+      const approvedById = new Map(approved.map((row) => [row.id, row.name]));
+      const unchanged = batch.filter((row) => !approvedById.has(row.id));
+      const latestAccounts = unchanged.length ? await db.select({ id: users.id, name: users.name, role: users.role, approvedAt: users.approvedAt })
+        .from(users).where(inArray(users.id, unchanged.map((row) => row.id))) : [];
+      const latestById = new Map(latestAccounts.map((row) => [row.id, row]));
+      for (const row of batch) {
+        const name = approvedById.get(row.id);
+        if (name) {
+          success.push({ id: row.id, name, status: 'approved' });
+          continue;
+        }
+        const account = latestById.get(row.id);
+        if (!account) failures.push({ rowNumber: row.rowNumber, id: row.id, reason: 'account_changed' });
+        else if (account.role !== 'Mahasiswa') failures.push({ rowNumber: row.rowNumber, id: row.id, reason: 'not_student' });
+        else if (normalizeName(account.name) !== normalizeName(row.name)) failures.push({ rowNumber: row.rowNumber, id: row.id, reason: 'name_mismatch' });
+        else if (account.approvedAt) success.push({ id: row.id, name: account.name, status: 'already_approved' });
+        else failures.push({ rowNumber: row.rowNumber, id: row.id, reason: 'account_changed' });
+      }
+    }
+
+    const prepared = await mapWithConcurrency(toInsert, 8, async (row) => ({
+      id: row.id,
+      name: row.name,
+      email: row.email,
+      password: await bcrypt.hash(row.id, getEnv().BCRYPT_ROUNDS),
+      role: 'Mahasiswa' as const,
+      approvedAt: now,
+      approvedBy: ctx.user.id,
+      isFirstLogin: true,
+    }));
+    const rowNumberById = new Map(toInsert.map((row) => [row.id, row.rowNumber]));
+    for (let offset = 0; offset < prepared.length; offset += 200) {
+      const batch = prepared.slice(offset, offset + 200);
+      const inserted = await db.insert(users).values(batch).onConflictDoNothing().returning({ id: users.id, name: users.name });
+      const insertedById = new Map(inserted.map((row) => [row.id, row.name]));
+      for (const row of batch) {
+        const name = insertedById.get(row.id);
+        if (name) success.push({ id: row.id, name, status: 'created' });
+      }
+      const notInserted = batch.filter((row) => !insertedById.has(row.id));
+      if (notInserted.length) {
+        const racedAccounts = await db.select({ id: users.id, name: users.name, role: users.role, approvedAt: users.approvedAt })
+          .from(users).where(inArray(users.id, notInserted.map((row) => row.id)));
+        const racedById = new Map(racedAccounts.map((row) => [row.id, row]));
+        for (const row of notInserted) {
+          const account = racedById.get(row.id);
+          const rowNumber = rowNumberById.get(row.id) ?? 1;
+          if (!account) failures.push({ rowNumber, id: row.id, reason: 'email_conflict' });
+          else if (account.role !== 'Mahasiswa') failures.push({ rowNumber, id: row.id, reason: 'not_student' });
+          else if (normalizeName(account.name) !== normalizeName(row.name)) failures.push({ rowNumber, id: row.id, reason: 'name_mismatch' });
+          else if (account.approvedAt) success.push({ id: row.id, name: account.name, status: 'already_approved' });
+          else {
+            const [approved] = await db.update(users).set({ approvedAt: now, approvedBy: ctx.user.id, updatedAt: now })
+              .where(and(eq(users.id, row.id), eq(users.role, 'Mahasiswa'), isNull(users.approvedAt)))
+              .returning({ id: users.id, name: users.name });
+            if (approved) success.push({ id: approved.id, name: approved.name, status: 'approved' });
+            else failures.push({ rowNumber, id: row.id, reason: 'account_changed' });
+          }
+        }
+      }
+    }
+    return { success, failures };
+  }),
 });

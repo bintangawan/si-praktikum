@@ -14,7 +14,7 @@ export async function FeaturePage({ segments, view, archive, studentId }: { segm
   if (head === 'dashboard' || segments.length === 0) { page = 'dashboard'; data = await caller.dashboard.summary(); }
   else if (head === 'profile') { page = 'profile'; data = { user }; }
   else if (head === 'courses' && segments[1] === 'create') { page = 'course-create'; data = await caller.courses.createOptions(); }
-  else if (head === 'courses' && segments.length === 1) { page = 'courses'; data = await caller.courses.list({ view: view === 'all' ? 'all' : 'my_classes' }); }
+  else if (head === 'courses' && segments.length === 1) { page = 'courses'; data = await caller.courses.list({ view: user.role === 'Laboran' || view === 'all' ? 'all' : 'my_classes' }); }
   else if (head === 'courses' && segments[1] && segments[2] === 'print-card') { page = 'print-card'; data = await caller.courses.printCardData({ slug: segments[1] }); }
   else if (head === 'courses' && segments[1] && segments[2] === 'grades') { page = 'grades'; data = { slug: segments[1], course: await caller.courses.get({ slug: segments[1] }), rows: await caller.courses.grades({ slug: segments[1] }) }; }
   else if (head === 'courses' && segments[1] && segments[2] === 'students') { page = 'students'; data = { slug: segments[1], ...(await caller.courses.students({ slug: segments[1] })) }; }

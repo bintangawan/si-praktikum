@@ -18,6 +18,7 @@ export async function getCourseBySlug(slug: string) {
     aslabId: courses.aslabId,
     enrollmentCode: courses.enrollmentCode,
     semesterIsActive: semesters.isActive,
+    semesterName: semesters.name,
   }).from(courses).innerJoin(semesters, eq(courses.semesterId, semesters.id))
     .where(eq(courses.slug, slug)).limit(1);
   if (!course) throw new TRPCError({ code: 'NOT_FOUND', message: 'Kelas tidak ditemukan.' });

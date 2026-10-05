@@ -43,6 +43,8 @@ async function getSubmission(id: number) {
     slug: courses.slug,
     courseName: courses.courseName,
     classGroup: courses.classGroup,
+    targetSemester: courses.targetSemester,
+    semesterName: semesters.name,
     isArchived: courses.isArchived,
     semesterIsActive: semesters.isActive,
     meetingNumber: meetings.meetingNumber,
@@ -109,6 +111,8 @@ export const submissionsRouter = router({
         slug: course.slug,
         courseName: course.courseName,
         classGroup: course.classGroup,
+        targetSemester: course.targetSemester,
+        semesterName: course.semesterName,
         isArchived: course.isArchived,
         semesterIsActive: course.semesterIsActive,
         dosenId: course.dosenId,
@@ -132,19 +136,21 @@ export const submissionsRouter = router({
       taskId: meetings.id, meetingId: meetings.id, finalTaskId: sql<number | null>`NULL::bigint`,
       isFinal: sql<boolean>`false`, taskTitle: meetings.title, meetingNumber: meetings.meetingNumber,
       deadline: meetings.deadline, courseName: courses.courseName, classGroup: courses.classGroup,
+      group: courses.classGroup, targetSemester: courses.targetSemester, semesterName: semesters.name,
       courseSlug: courses.slug, submission: submissions,
     }).from(courseUsers).innerJoin(courses, eq(courseUsers.courseId, courses.id))
       .innerJoin(semesters, eq(courses.semesterId, semesters.id)).innerJoin(meetings, eq(meetings.courseId, courses.id))
-      .leftJoin(submissions, and(eq(submissions.meetingId, meetings.id), eq(submissions.studentId, ctx.user.id)))
+      .leftJoin(submissions, and(eq(submissions.meetingId, meetings.id), eq(submissions.studentId, ctx.user.id), isNotNull(submissions.submissionLink)))
       .where(and(eq(courseUsers.userId, ctx.user.id), isNotNull(meetings.publishedAt), archiveFilter));
     const finals = await db.select({
       taskId: finalTasks.id, meetingId: sql<number | null>`NULL::bigint`, finalTaskId: finalTasks.id,
       isFinal: sql<boolean>`true`, taskTitle: sql<string>`'Laporan Final'`, meetingNumber: sql<number | null>`NULL::integer`,
       deadline: finalTasks.deadline, courseName: courses.courseName, classGroup: courses.classGroup,
+      group: courses.classGroup, targetSemester: courses.targetSemester, semesterName: semesters.name,
       courseSlug: courses.slug, submission: submissions,
     }).from(courseUsers).innerJoin(courses, eq(courseUsers.courseId, courses.id))
       .innerJoin(semesters, eq(courses.semesterId, semesters.id)).innerJoin(finalTasks, eq(finalTasks.courseId, courses.id))
-      .leftJoin(submissions, and(eq(submissions.finalTaskId, finalTasks.id), eq(submissions.studentId, ctx.user.id)))
+      .leftJoin(submissions, and(eq(submissions.finalTaskId, finalTasks.id), eq(submissions.studentId, ctx.user.id), isNotNull(submissions.submissionLink)))
       .where(and(eq(courseUsers.userId, ctx.user.id), archiveFilter));
     return [...weekly, ...finals].sort((left, right) =>
       (right.deadline?.getTime() ?? 0) - (left.deadline?.getTime() ?? 0));
@@ -158,6 +164,7 @@ export const submissionsRouter = router({
     const [submission] = await getDb().select().from(submissions).where(and(
       input.meetingId ? eq(submissions.meetingId, input.meetingId) : eq(submissions.finalTaskId, input.finalTaskId!),
       eq(submissions.studentId, ctx.user.id),
+      isNotNull(submissions.submissionLink),
     )).limit(1);
     const histories = submission ? await getDb().select({ history: submissionHistories, reviewerName: users.name, reviewerRole: users.role })
       .from(submissionHistories).leftJoin(users, eq(submissionHistories.reviewedBy, users.id))
@@ -252,12 +259,13 @@ export const submissionsRouter = router({
       role === 'Aslab' ? eq(submissions.aslabStatus, 'Pending') : and(eq(submissions.aslabStatus, 'ACC'), eq(submissions.laboranStatus, 'Pending'));
     const assigned = role === 'Dosen' ? eq(courses.dosenId, ctx.user.id) : role === 'Aslab' ? eq(courses.aslabId, ctx.user.id) : undefined;
     return getDb().select({ submission: submissions, studentName: users.name, studentId: users.id, courseSlug: courses.slug,
-      courseName: courses.courseName, group: courses.classGroup, meetingNumber: meetings.meetingNumber })
+      courseName: courses.courseName, group: courses.classGroup, targetSemester: courses.targetSemester,
+      semesterName: semesters.name, meetingNumber: meetings.meetingNumber })
       .from(submissions).innerJoin(users, eq(submissions.studentId, users.id))
       .leftJoin(meetings, eq(submissions.meetingId, meetings.id)).leftJoin(finalTasks, eq(submissions.finalTaskId, finalTasks.id))
       .innerJoin(courses, or(eq(meetings.courseId, courses.id), eq(finalTasks.courseId, courses.id)))
       .innerJoin(semesters, eq(courses.semesterId, semesters.id))
-      .where(and(eq(submissions.isCompleted, false), status, assigned, eq(courses.isArchived, false), eq(semesters.isActive, true)))
+      .where(and(eq(submissions.isCompleted, false), isNotNull(submissions.submissionLink), status, assigned, eq(courses.isArchived, false), eq(semesters.isActive, true)))
       .orderBy(desc(submissions.createdAt)).limit(250);
   }),
 

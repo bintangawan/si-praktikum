@@ -41,6 +41,7 @@ export const coursesRouter = router({
     if (user.role === 'Aslab') filters.push(eq(courses.aslabId, user.id));
     if (user.role === 'Mahasiswa') filters.push(sql`EXISTS (SELECT 1 FROM course_user cu WHERE cu.course_id = ${courses.id} AND cu.user_id = ${user.id})` as never);
     return getDb().select({ id: courses.id, slug: courses.slug, name: courses.courseName, group: courses.classGroup,
+      targetSemester: courses.targetSemester,
       semesterName: semesters.name, semesterActive: semesters.isActive, isArchived: courses.isArchived,
       dosenName: sql<string>`dosen.name`, aslabName: sql<string>`aslab.name`, laboranName: sql<string>`laboran.name` })
       .from(courses).innerJoin(semesters, eq(courses.semesterId, semesters.id))
@@ -67,8 +68,11 @@ export const coursesRouter = router({
       .innerJoin(sql`users dosen`, sql`dosen.id = ${courses.dosenId}`)
       .innerJoin(sql`users aslab`, sql`aslab.id = ${courses.aslabId}`)
       .innerJoin(sql`users laboran`, sql`laboran.id = ${courses.laboranId}`)
-      .where(and(...filters)).orderBy(desc(courses.createdAt)).limit(100);
-    return { activeSemester, courses: rows };
+      .where(and(...filters)).orderBy(desc(courses.createdAt));
+    return {
+      activeSemester,
+      courses: rows.map((course) => ({ ...course, semesterName: activeSemester.name })),
+    };
   }),
 
   get: protectedProcedure.input(z.object({ slug: z.string().min(1) })).query(async ({ ctx, input }) => {
@@ -86,7 +90,7 @@ export const coursesRouter = router({
       .where(eq(courses.id, course.id)).limit(1),
       db.select({
         meeting: meetings,
-        submissionsCount: sql<number>`(SELECT count(*)::int FROM submissions WHERE submissions.meeting_id = ${meetings.id})`,
+        submissionsCount: sql<number>`(SELECT count(*)::int FROM submissions WHERE submissions.meeting_id = ${meetings.id} AND submissions.submission_link IS NOT NULL)`,
         attendancesCount: sql<number>`(SELECT count(*)::int FROM attendances WHERE attendances.meeting_id = ${meetings.id})`,
       }).from(meetings).where(eq(meetings.courseId, course.id)).orderBy(asc(meetings.meetingNumber)),
       db.select().from(finalTasks).where(eq(finalTasks.courseId, course.id)).limit(1),
@@ -103,6 +107,7 @@ export const coursesRouter = router({
           inArray(submissions.meetingId, meetingIds),
           eq(submissions.studentId, ctx.user.id),
           eq(submissions.isFinal, false),
+          sql`${submissions.submissionLink} IS NOT NULL`,
         )),
         db.select({ meetingId: attendances.meetingId, status: attendances.status }).from(attendances).where(and(
           inArray(attendances.meetingId, meetingIds),
@@ -245,6 +250,8 @@ export const coursesRouter = router({
     return {
       courseName: course.courseName,
       classGroup: course.classGroup,
+      targetSemester: course.targetSemester,
+      semesterName: course.semesterName,
       isArchived: course.isArchived || !course.semesterIsActive,
       students,
     };
@@ -254,7 +261,7 @@ export const coursesRouter = router({
     const course = await requireCourseManager(ctx.user, await getCourseBySlug(input.slug));
     const query = `%${input.query.replace(/[\\%_]/g, '\\$&')}%`;
     return getDb().select({ id: users.id, name: users.name, email: users.email }).from(users)
-      .where(and(eq(users.role, 'Mahasiswa'), sql`${users.approvedAt} IS NOT NULL`, or(ilike(users.id, query), ilike(users.name, query)),
+      .where(and(eq(users.role, 'Mahasiswa'), sql`${users.approvedAt} IS NOT NULL`, ilike(users.id, query),
         sql`NOT EXISTS (SELECT 1 FROM course_user cu WHERE cu.user_id = ${users.id} AND cu.course_id = ${course.id})`))
       .orderBy(asc(users.name), asc(users.id)).limit(10);
   }),
@@ -266,6 +273,55 @@ export const coursesRouter = router({
     if (!student) throw new TRPCError({ code: 'NOT_FOUND', message: 'Mahasiswa belum disetujui atau tidak ditemukan.' });
     await getDb().insert(courseUsers).values({ courseId: course.id, userId: student.id }).onConflictDoNothing();
     return { success: true };
+  }),
+
+  importStudents: roleProcedure('Laboran', 'Aslab').input(z.object({
+    slug: z.string().min(1),
+    rows: z.array(z.object({ rowNumber: z.number().int().positive(), studentId: z.string().trim().max(20) })).min(1).max(1000),
+  })).mutation(async ({ ctx, input }) => {
+    const course = await requireCourseManager(ctx.user, await getCourseBySlug(input.slug));
+    requireCourseWritable(course);
+
+    const studentIds = [...new Set(input.rows.map((row) => row.studentId).filter(Boolean))];
+    const [registeredStudents, existingMemberships] = studentIds.length ? await Promise.all([
+      getDb().select({ id: users.id, name: users.name, role: users.role, approvedAt: users.approvedAt }).from(users)
+        .where(inArray(users.id, studentIds)),
+      getDb().select({ userId: courseUsers.userId }).from(courseUsers)
+        .where(and(eq(courseUsers.courseId, course.id), inArray(courseUsers.userId, studentIds))),
+    ]) : [[], []];
+    const studentById = new Map(registeredStudents.map((student) => [student.id, student]));
+    const enrolledIds = new Set(existingMemberships.map((membership) => membership.userId));
+    const seenIds = new Set<string>();
+    const success: Array<{ id: string; name: string }> = [];
+    const failures: Array<{ rowNumber: number; id: string; reason: 'incomplete' | 'duplicate' | 'not_registered' | 'already_enrolled' }> = [];
+
+    for (const row of input.rows) {
+      const studentId = row.studentId.trim();
+      if (!studentId) {
+        failures.push({ rowNumber: row.rowNumber, id: studentId, reason: 'incomplete' });
+        continue;
+      }
+      if (seenIds.has(studentId)) {
+        failures.push({ rowNumber: row.rowNumber, id: studentId, reason: 'duplicate' });
+        continue;
+      }
+      seenIds.add(studentId);
+      const registered = studentById.get(studentId);
+      if (!registered || registered.role !== 'Mahasiswa' || !registered.approvedAt) {
+        failures.push({ rowNumber: row.rowNumber, id: studentId, reason: 'not_registered' });
+        continue;
+      }
+      if (enrolledIds.has(studentId)) {
+        failures.push({ rowNumber: row.rowNumber, id: studentId, reason: 'already_enrolled' });
+        continue;
+      }
+      success.push({ id: studentId, name: registered.name });
+    }
+
+    if (success.length) {
+      await getDb().insert(courseUsers).values(success.map((student) => ({ courseId: course.id, userId: student.id }))).onConflictDoNothing();
+    }
+    return { success, failures };
   }),
 
   removeStudent: roleProcedure('Laboran').input(z.object({ slug: z.string().min(1), studentId: z.string().min(1).max(20) })).mutation(async ({ ctx, input }) => {
@@ -357,12 +413,13 @@ export const coursesRouter = router({
         const submission = submissionByStudentAndMeeting.get(`${student.id}:${meeting.id}`);
         const moduleScore = submission && submission.aslabScore !== null && submission.laboranScore !== null
           ? Math.round((Number(submission.aslabScore) * 0.8 + Number(submission.laboranScore) * 0.2) * 100) / 100 : null;
-        return { meetingNumber: meeting.meetingNumber, meetingTitle: meeting.title, hasSubmission: Boolean(submission),
+        return { meetingNumber: meeting.meetingNumber, meetingTitle: meeting.title, hasSubmission: Boolean(submission?.submissionLink),
           isCompleted: Boolean(submission?.isCompleted), hasAslabScore: submission?.aslabScore !== null && submission?.aslabScore !== undefined,
           hasLaboranScore: submission?.laboranScore !== null && submission?.laboranScore !== undefined,
+          aslabStatus: submission?.aslabStatus ?? 'Pending', laboranStatus: submission?.laboranStatus ?? 'Pending',
           aslabScore: submission?.aslabScore, laboranScore: submission?.laboranScore, score: moduleScore };
       });
-      const ready = moduleRows.length > 0 && moduleRows.every((meeting) => meeting.publishedAt !== null) && modules.every((module) =>
+      const ready = moduleRows.length > 0 && modules.every((module) =>
         module.isCompleted && module.hasAslabScore && module.hasLaboranScore);
       const laprak = ready ? Math.round((modules.reduce((total, module) => total + Number(module.score), 0) / modules.length) * 100) / 100 : null;
       const grade = gradeByStudent.get(student.id);
@@ -372,6 +429,37 @@ export const coursesRouter = router({
       return { ...student, modules, ready, laprak, laprakLetter: letter(laprak), grade: grade ?? null,
         uts, utsLetter: letter(uts), uas, uasLetter: letter(uas), final, finalLetter: letter(final) };
     });
+  }),
+
+  saveManualModuleGrade: roleProcedure('Aslab', 'Laboran').input(z.object({
+    slug: z.string().min(1), studentId: z.string().min(1).max(20), meetingNumber: z.number().int().positive(), score: z.number().min(0).max(100),
+  })).mutation(async ({ ctx, input }) => {
+    const course = await requireCourseManager(ctx.user, await getCourseBySlug(input.slug));
+    requireCourseWritable(course);
+    const [meeting] = await getDb().select({ id: meetings.id }).from(meetings)
+      .where(and(eq(meetings.courseId, course.id), eq(meetings.meetingNumber, input.meetingNumber))).limit(1);
+    if (!meeting) throw new TRPCError({ code: 'NOT_FOUND', message: 'Modul tidak ditemukan.' });
+    const [membership] = await getDb().select({ id: courseUsers.id }).from(courseUsers)
+      .where(and(eq(courseUsers.courseId, course.id), eq(courseUsers.userId, input.studentId))).limit(1);
+    if (!membership) throw new TRPCError({ code: 'NOT_FOUND', message: 'Mahasiswa bukan peserta kelas ini.' });
+
+    const now = new Date();
+    const isAslab = ctx.user.role === 'Aslab';
+    await getDb().transaction(async (tx) => {
+      await tx.insert(submissions).values({ studentId: input.studentId, meetingId: meeting.id, isFinal: false })
+        .onConflictDoNothing({ target: [submissions.meetingId, submissions.studentId] });
+      const [submission] = await tx.select().from(submissions)
+        .where(and(eq(submissions.meetingId, meeting.id), eq(submissions.studentId, input.studentId))).for('update');
+      if (!submission) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Nilai laprak gagal disimpan.' });
+      const otherReviewerApproved = isAslab ? submission.laboranStatus === 'ACC' : submission.aslabStatus === 'ACC';
+      await tx.update(submissions).set({
+        ...(isAslab ? { aslabStatus: 'ACC' as const, aslabScore: String(input.score), aslabAccAt: now } :
+          { laboranStatus: 'ACC' as const, laboranScore: String(input.score), laboranAccAt: now }),
+        isCompleted: otherReviewerApproved,
+        updatedAt: now,
+      }).where(eq(submissions.id, submission.id));
+    });
+    return { success: true };
   }),
 
   updateGrade: roleProcedure('Dosen').input(z.object({ slug: z.string().min(1), studentId: z.string().min(1).max(20), utsScore: z.number().min(0).max(100), uasScore: z.number().min(0).max(100) })).mutation(async ({ ctx, input }) => {

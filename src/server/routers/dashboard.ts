@@ -1,4 +1,4 @@
-import { and, count, desc, eq, or, sql } from 'drizzle-orm';
+import { and, count, desc, eq, isNotNull, or, sql } from 'drizzle-orm';
 import { getDb } from '../db';
 import { courses, finalTasks, meetings, semesters, submissions, users } from '../db/schema';
 import { protectedProcedure, router } from '../trpc/init';
@@ -26,14 +26,14 @@ export const dashboardRouter = router({
       .leftJoin(courses, or(eq(meetings.courseId, courses.id), eq(finalTasks.courseId, courses.id)));
     const pendingCountPromise = (async () => {
       if (user.role === 'Mahasiswa') {
-        const [row] = await submissionsQuery.where(eq(submissions.studentId, user.id));
+        const [row] = await submissionsQuery.where(and(eq(submissions.studentId, user.id), isNotNull(submissions.submissionLink)));
         return row?.value ?? 0;
       }
       const roleStatus = user.role === 'Dosen' ? eq(submissions.dosenStatus, 'Pending') :
         user.role === 'Aslab' ? eq(submissions.aslabStatus, 'Pending') : eq(submissions.laboranStatus, 'Pending');
       let assignment = user.role === 'Dosen' ? eq(courses.dosenId, user.id) : user.role === 'Aslab' ? eq(courses.aslabId, user.id) : eq(courses.laboranId, user.id);
       if (activeSemester) assignment = and(assignment, eq(courses.semesterId, activeSemester.id))!;
-      const [row] = await submissionsQuery.where(and(eq(submissions.isCompleted, false), roleStatus, assignment));
+      const [row] = await submissionsQuery.where(and(eq(submissions.isCompleted, false), isNotNull(submissions.submissionLink), roleStatus, assignment));
       return row?.value ?? 0;
     })();
 
@@ -51,6 +51,7 @@ export const dashboardRouter = router({
           slug: courses.slug,
           name: courses.courseName,
           group: courses.classGroup,
+          targetSemester: courses.targetSemester,
           semesterName: semesters.name,
           isArchived: sql<boolean>`${courses.isArchived} OR NOT ${semesters.isActive}`,
           studentCount: sql<number>`(SELECT count(*)::int FROM course_user cu WHERE cu.course_id = ${courses.id})`,
@@ -87,6 +88,7 @@ export const dashboardRouter = router({
       db.select({ value: count() }).from(meetings).innerJoin(courses, eq(meetings.courseId, courses.id)).where(courseFilter),
       pendingCountPromise,
       db.select({ id: courses.id, slug: courses.slug, name: courses.courseName, group: courses.classGroup,
+      targetSemester: courses.targetSemester,
       semesterName: semesters.name, isArchived: sql<boolean>`${courses.isArchived} OR NOT ${semesters.isActive}`,
       studentCount: sql<number>`(SELECT count(*)::int FROM course_user cu WHERE cu.course_id = ${courses.id})`,
       moduleCount: sql<number>`(SELECT count(*)::int FROM meetings m WHERE m.course_id = ${courses.id})`,

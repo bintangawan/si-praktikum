@@ -14,6 +14,7 @@ import { useLocale } from '@/lib/locale-context';
 import type { GradeExportCourse, GradeExportRow } from '@/lib/grade-export';
 import { LaprakReport, type LaprakReportData } from './LaprakReport';
 import { canCreateCourse, canViewEnrollmentCode } from '@/lib/course-permissions';
+import { formatSemesterClassLabel } from '@/lib/course-label';
 
 // Server DTOs are intentionally treated as dynamic records at this shared view boundary.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -89,7 +90,7 @@ function DashboardView({ data, user }: { data: AnyRecord; user: SessionUser }) {
     <section className="relative overflow-hidden rounded-3xl bg-emerald-950 p-6 text-white shadow-xl shadow-emerald-950/10 sm:p-8 lg:p-10"><div className="pointer-events-none absolute -right-10 -top-16 h-56 w-56 rounded-full bg-emerald-400/15 blur-3xl" /><div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between"><div><div className="mb-4 inline-flex items-center gap-2 rounded-full border border-emerald-300/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-emerald-100"><BookOpen className="h-4 w-4" /> {t(locale, 'role.' + user.role as Parameters<typeof t>[1])}</div><h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{t(locale, 'ui.dashboardGreeting')}, {t(locale, 'role.' + user.role as Parameters<typeof t>[1])}!</h1><p className="mt-1 text-sm font-medium text-emerald-100">{user.name}</p><p className="mt-3 max-w-2xl text-sm leading-6 text-emerald-100/80">{roleDescription}</p></div><div className="hidden h-20 w-20 items-center justify-center rounded-3xl border border-white/10 bg-white/10 text-emerald-100 sm:flex"><GraduationCap className="h-10 w-10" /></div></div></section>
     {data.activeSemester && <div className="flex items-center gap-3 rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"><CalendarDays className="h-5 w-5" /><span>{t(locale, 'ui.activeSemester')}: <strong>{localizedSemesterName(locale, data.activeSemester.name)}</strong></span></div>}
     <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">{stats.map(({ label, value, icon: Icon }) => <article key={label} className={`${card} flex items-center gap-4 p-4 sm:p-5`}><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700"><Icon className="h-5 w-5" /></span><div><p className="text-xs font-medium text-slate-500">{label}</p><p className="mt-1 text-2xl font-bold text-slate-900">{value ?? 0}</p></div></article>)}</section>
-    <section><div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-bold text-slate-900">{t(locale, 'ui.courseList')}</h2><Link href="/courses" className="text-sm font-semibold text-emerald-700 hover:text-emerald-900">{t(locale, 'ui.seeAll')} <ArrowRight className="inline h-4 w-4" /></Link></div>{data.courses?.length ? <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">{data.courses.map((course: AnyRecord) => <Link key={course.id} href={`/courses/${course.slug}`} className={`${card} group block p-5 transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-lg sm:p-6`}><div className="flex items-start justify-between"><span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 transition group-hover:bg-emerald-700 group-hover:text-white"><BookOpen className="h-6 w-6" /></span><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">{t(locale, 'ui.active')}</span></div><p className="mt-5 text-xs font-semibold text-slate-500">{localizedSemesterName(locale, course.semesterName)}</p><h3 className="mt-1 text-lg font-bold text-slate-900">{course.name}</h3><p className="mt-1 text-sm text-slate-500">{t(locale, 'ui.class')} {course.group}</p><div className="mt-5 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4"><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">{t(locale, 'ui.students')}</p><p className="mt-1 font-bold text-slate-800">{course.studentCount}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">{t(locale, 'ui.module')}</p><p className="mt-1 font-bold text-slate-800">{course.moduleCount}</p></div></div></Link>)}</div> : <Empty message={t(locale, 'ui.emptyActiveCourses')} />}</section>
+    <section><div className="mb-4 flex items-center justify-between"><h2 className="text-lg font-bold text-slate-900">{t(locale, 'ui.courseList')}</h2><Link href="/courses" className="text-sm font-semibold text-emerald-700 hover:text-emerald-900">{t(locale, 'ui.seeAll')} <ArrowRight className="inline h-4 w-4" /></Link></div>{data.courses?.length ? <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">{data.courses.map((course: AnyRecord) => <Link key={course.id} href={`/courses/${course.slug}`} className={`${card} group block p-5 transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-lg sm:p-6`}><div className="flex items-start justify-between"><span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 transition group-hover:bg-emerald-700 group-hover:text-white"><BookOpen className="h-6 w-6" /></span><span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">{t(locale, 'ui.active')}</span></div><p className="mt-5 text-xs font-semibold text-slate-500">{formatSemesterClassLabel(localizedSemesterName(locale, course.semesterName), course.targetSemester, course.group)}</p><h3 className="mt-1 text-lg font-bold text-slate-900">{course.name}</h3><div className="mt-5 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4"><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">{t(locale, 'ui.students')}</p><p className="mt-1 font-bold text-slate-800">{course.studentCount}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs text-slate-500">{t(locale, 'ui.module')}</p><p className="mt-1 font-bold text-slate-800">{course.moduleCount}</p></div></div></Link>)}</div> : <Empty message={t(locale, 'ui.emptyActiveCourses')} />}</section>
   </div>;
 }
 
@@ -169,7 +170,7 @@ function AssignedCourseCards({ courses, showEnrollmentCode = false, emptyDescrip
       return <article key={course.id} className={`${card} group flex min-w-0 flex-col overflow-hidden transition duration-200 hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-lg`}>
         <div className="flex flex-1 flex-col p-5 sm:p-6">
           <div className="flex items-start justify-between gap-3"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700 transition group-hover:bg-emerald-700 group-hover:text-white"><BookOpen className="h-6 w-6" /></span><span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{t(locale, isActive ? 'ui.active' : 'ui.archived')}</span></div>
-          <div className="mt-5 min-w-0 flex-1"><p className="text-xs font-semibold text-slate-500">{localizedSemesterName(locale, course.semesterName)}</p><h3 className="mt-1 break-words text-lg font-bold leading-snug text-slate-900 sm:text-xl">{course.name}</h3><p className="mt-1 text-sm text-slate-500">{t(locale, 'ui.class')} {course.group}</p></div>
+          <div className="mt-5 min-w-0 flex-1"><p className="text-xs font-semibold text-slate-500">{formatSemesterClassLabel(localizedSemesterName(locale, course.semesterName), course.targetSemester, course.group)}</p><h3 className="mt-1 break-words text-lg font-bold leading-snug text-slate-900 sm:text-xl">{course.name}</h3></div>
           <div className="mt-5 grid grid-cols-2 gap-3 border-t border-slate-100 pt-4"><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs font-medium text-slate-500">{t(locale, 'ui.enrolledStudents')}</p><p className="mt-1 text-sm font-bold text-slate-800">{course.studentCount}</p></div><div className="rounded-xl bg-slate-50 p-3"><p className="text-xs font-medium text-slate-500">{t(locale, 'ui.module')}</p><p className="mt-1 text-sm font-bold text-slate-800">{course.moduleCount}</p></div></div>
           <div className="mt-4 grid gap-2 text-xs text-slate-500"><p><span className="font-semibold text-slate-600">{t(locale, 'ui.lecturer')}:</span> {course.dosenName ?? '—'}</p><p><span className="font-semibold text-slate-600">{t(locale, 'ui.labAssistant')}:</span> {course.aslabName ?? '—'}</p><p><span className="font-semibold text-slate-600">{t(locale, 'ui.labAdministrator')}:</span> {course.laboranName ?? '—'}</p></div>
           {showEnrollmentCode && course.enrollmentCode && <div className="mt-4 flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-emerald-100 bg-emerald-50/70 px-3 py-2.5"><span className="text-xs font-medium text-slate-600">{t(locale, 'ui.classCode')}</span><code className="break-all font-mono text-sm font-bold tracking-wider text-emerald-900">{course.enrollmentCode}</code></div>}
@@ -201,7 +202,6 @@ function CourseList({ data, user, archived = false }: { data: AnyRecord; user: S
     {user.role === 'Mahasiswa' && !archived && <form onSubmit={(event) => { event.preventDefault(); action.run({ enrollmentCode: code }, t(locale, 'ui.joinedCourse')); }} className={card + ' mb-5 flex flex-col gap-3 p-4 sm:flex-row'}><input value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} className={inputClass} placeholder={t(locale, 'ui.enrollmentCode')} maxLength={20} required /><button className={primary} disabled={action.pending}><Plus className="h-4 w-4" /> {t(locale, 'ui.joinCourse')}</button></form>}
     <Notice error={Boolean(action.error)}>{action.error}</Notice>
     <Notice>{action.message}</Notice>
-    {user.role === 'Laboran' && !archived && <div className="mb-4 flex justify-end"><Link href="/courses?view=all" className={secondary}>{t(locale, 'ui.allCourses')}</Link></div>}
     {items?.length ? <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:grid-cols-3">
       {items.map((course: AnyRecord) => {
         const isArchived = archived || course.isArchived || course.semesterActive === false;
@@ -211,7 +211,7 @@ function CourseList({ data, user, archived = false }: { data: AnyRecord; user: S
               <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700"><BookOpen className="h-6 w-6" /></span>
               <p className="mt-4 text-xs font-semibold text-slate-500">{localizedSemesterName(locale, course.semesterName)}</p>
               <h2 className="mt-1 break-words text-lg font-bold text-slate-900">{course.name}</h2>
-              <p className="mt-1 text-sm text-slate-500">{t(locale, 'ui.class')} {course.group}</p>
+              <p className="mt-1 text-sm text-slate-500">{formatSemesterClassLabel(localizedSemesterName(locale, course.semesterName), course.targetSemester, course.group)}</p>
             </Link>
             <span className={'shrink-0 rounded-full px-3 py-1 text-xs font-semibold ' + (isArchived ? 'bg-slate-100 text-slate-600' : 'bg-emerald-50 text-emerald-700')}>{isArchived ? t(locale, 'ui.archived') : t(locale, 'ui.active')}</span>
           </div>
@@ -251,7 +251,7 @@ function CourseCreate({ options, editing, staffMode }: { options: AnyRecord; edi
   const pending = mutation.isPending || update.isPending || staff.isPending;
   const select = (name: string, label: string, choices: AnyRecord[], value?: string | null, disabled = false) => <label className="block"><span className="mb-2 block text-xs font-semibold text-slate-700">{label}</span><select name={disabled ? undefined : name} className={inputClass} required disabled={disabled} defaultValue={value ?? ''}><option value="" disabled>{t(locale, 'ui.select')} {label.toLowerCase()}</option>{choices.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select>{disabled && value && <input type="hidden" name={name} value={value} />}</label>;
   const title = staffMode ? t(locale, 'ui.assignStaffTitle') : course ? t(locale, 'ui.editCourseTitle') : t(locale, 'ui.createCourseTitle');
-  return <><Heading title={title} description={options.semester ? `${t(locale, 'ui.activeSemester')}: ${localizedSemesterName(locale, options.semester.name)}` : t(locale, 'ui.chooseStaffAndModules')} />
+  return <><Heading title={title} description={course ? `${course.courseName} · ${formatSemesterClassLabel(localizedSemesterName(locale, course.semesterName), course.targetSemester, course.classGroup)}` : options.semester ? `${t(locale, 'ui.activeSemester')}: ${localizedSemesterName(locale, options.semester.name)}` : t(locale, 'ui.chooseStaffAndModules')} />
     <form onSubmit={submit} className={`${card} grid gap-5 p-5 sm:grid-cols-2 sm:p-7`}><Notice error>{error}</Notice>{!staffMode && <><label className="block sm:col-span-2"><span className="mb-2 block text-xs font-semibold text-slate-700">{t(locale, 'ui.courseName')}</span><input name="courseName" required maxLength={255} defaultValue={course?.courseName} className={inputClass} /></label><label className="block"><span className="mb-2 block text-xs font-semibold text-slate-700">{t(locale, 'ui.class')}</span><input name="classGroup" required maxLength={50} defaultValue={course?.classGroup} className={inputClass} /></label><label className="block"><span className="mb-2 block text-xs font-semibold text-slate-700">{t(locale, 'ui.studentSemester')}</span><input name="targetSemester" type="number" min={1} max={14} required defaultValue={course?.targetSemester ?? 1} className={inputClass} /></label>{!course && <label className="block"><span className="mb-2 block text-xs font-semibold text-slate-700">{t(locale, 'ui.moduleCount')}</span><input name="moduleCount" type="number" min={1} max={16} required defaultValue={8} className={inputClass} /></label>}</>}
       {select('dosenId', t(locale, 'ui.lecturer'), options.dosens ?? [], course?.dosenId)}{select('aslabId', t(locale, 'ui.labAssistant'), options.aslabs ?? [], course?.aslabId ?? options.currentAslabId, !course && Boolean(options.currentAslabId))}{!staffMode && select('laboranId', t(locale, 'ui.labAdministrator'), options.laborans ?? [], course?.laboranId)}
       <div className="flex gap-3 sm:col-span-2"><button className={primary} disabled={pending}>{pending ? t(locale, 'ui.saving') : course ? t(locale, 'ui.saveChanges') : staffMode ? t(locale, 'ui.saveAssignment') : t(locale, 'ui.createCourse')} <Check className="h-4 w-4" /></button><Link href={course ? `/courses/${course.slug}` : '/courses'} className={secondary}>{t(locale, 'ui.cancel')}</Link></div>
@@ -304,7 +304,7 @@ function CourseDetail({ data, user }: { data: AnyRecord; user: SessionUser }) {
     </div>
     <Notice error>{deleteError}</Notice>
     {archived && <Notice>{t(locale, 'ui.courseArchivedReadOnly')}</Notice>}
-    <Heading title={`${t(locale, 'ui.practicumDetails')}: ${course.courseName}`} description={`${localizedSemesterName(locale, course.semesterName)} · ${t(locale, 'ui.class')} ${course.classGroup}`} />
+    <Heading title={`${t(locale, 'ui.practicumDetails')}: ${course.courseName}`} description={formatSemesterClassLabel(localizedSemesterName(locale, course.semesterName), course.targetSemester, course.classGroup)} />
     {canViewEnrollmentCode(user.role) && course.enrollmentCode && <p className="-mt-4 inline-flex max-w-full flex-wrap items-center gap-2 rounded-xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm"><span className="font-medium text-slate-600">{t(locale, 'ui.enrollment')}</span><code className="break-all font-mono font-bold text-emerald-900">{course.enrollmentCode}</code></p>}
     {course.finalTask && <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:p-7">
       <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
@@ -389,7 +389,7 @@ function PracticumCard({ data }: { data: AnyRecord }) {
   const { course, student, meetings } = data;
   const byNumber = new Map<number, AnyRecord>(meetings.map((row: AnyRecord) => [row.meeting.meetingNumber, row]));
   return <div className="mx-auto max-w-5xl">
-    <Heading title={t(locale, 'ui.printCard')} description={`${course.courseName} · ${t(locale, 'ui.class')} ${course.classGroup}`} actions={<button className={`${primary} print:hidden`} onClick={() => window.print()}><Printer className="h-4 w-4" /> {t(locale, 'ui.printSavePdf')}</button>} />
+    <Heading title={t(locale, 'ui.printCard')} description={`${course.courseName} · ${formatSemesterClassLabel(localizedSemesterName(locale, course.semesterName), course.targetSemester, course.classGroup)}`} actions={<button className={`${primary} print:hidden`} onClick={() => window.print()}><Printer className="h-4 w-4" /> {t(locale, 'ui.printSavePdf')}</button>} />
     <article id="practicum-card" className="bg-white p-5 text-black shadow-sm sm:p-8 print:shadow-none">
       <header className="border-b-4 border-double border-black pb-4 text-center">
         <p className="text-xs font-bold uppercase">{t(locale, 'ui.universityName')}</p>
@@ -399,7 +399,7 @@ function PracticumCard({ data }: { data: AnyRecord }) {
       </header>
       <h2 className="my-5 text-center text-base font-bold uppercase">{t(locale, 'ui.practicumCardHeading')}</h2>
       <section className="grid gap-4 sm:grid-cols-[1fr_3cm]">
-        <dl className="grid grid-cols-[6rem_1rem_1fr] gap-y-2 text-sm"><dt className="font-bold">{t(locale, 'ui.name')}</dt><dd>:</dd><dd className="font-semibold uppercase">{student.name}</dd><dt className="font-bold">NIM</dt><dd>:</dd><dd>{student.id}</dd><dt className="font-bold">{t(locale, 'ui.courseSubject')}</dt><dd>:</dd><dd>{course.courseName}</dd><dt className="font-bold">{t(locale, 'ui.class')}</dt><dd>:</dd><dd>{course.classGroup}</dd><dt className="font-bold">{t(locale, 'ui.semester')}</dt><dd>:</dd><dd>{localizedSemesterName(locale, course.semesterName)}</dd></dl>
+        <dl className="grid grid-cols-[6rem_1rem_1fr] gap-y-2 text-sm"><dt className="font-bold">{t(locale, 'ui.name')}</dt><dd>:</dd><dd className="font-semibold uppercase">{student.name}</dd><dt className="font-bold">NIM</dt><dd>:</dd><dd>{student.id}</dd><dt className="font-bold">{t(locale, 'ui.courseSubject')}</dt><dd>:</dd><dd>{course.courseName}</dd><dt className="font-bold">{t(locale, 'ui.class')}</dt><dd>:</dd><dd>{formatSemesterClassLabel(localizedSemesterName(locale, course.semesterName), course.targetSemester, course.classGroup)}</dd></dl>
         <div className="flex h-40 w-28 items-center justify-center border border-black text-xs">{student.avatar ? <Image src="/api/avatar" alt={student.name} width={112} height={160} unoptimized className="h-full w-full object-cover" /> : '3 × 4'}</div>
       </section>
       <table className="mt-6 w-full border-collapse text-center text-xs">
@@ -443,7 +443,7 @@ function StudentSubmission({ data, final = false }: { data: AnyRecord; final?: b
   const title = final ? t(locale, 'ui.submitFinalReport') : copy(locale, 'ui.submitModule', { number: task.meetingNumber });
   const localizedTaskTitle = task.title ? localizedModuleTitle(locale, task.title, task.meetingNumber) : '';
   const statusLabel = t(locale, status === 'Diterima' ? 'ui.accepted' : status === 'Ditolak' ? 'ui.rejected' : status === 'Revisi' ? 'ui.revision' : status === 'Menunggu pemeriksaan' ? 'ui.awaitingReview' : 'ui.notSubmitted');
-  return <><Heading title={title} description={`${data.course.courseName} · ${t(locale, 'ui.class')} ${data.course.classGroup}`} />
+  return <><Heading title={title} description={`${data.course.courseName} · ${formatSemesterClassLabel(localizedSemesterName(locale, data.course.semesterName), data.course.targetSemester, data.course.classGroup)}`} />
     {localizedTaskTitle && <p className="mb-4 text-sm font-semibold text-slate-700">{localizedTaskTitle}</p>}
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.8fr)]"><section className={`${card} p-5 sm:p-7`}><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-bold">{t(locale, 'ui.submissionStatus')}</h2><span className={`rounded-full px-3 py-1.5 text-xs font-bold ${status === 'Diterima' ? 'bg-emerald-50 text-emerald-800' : status === 'Revisi' || status === 'Ditolak' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-800'}`}>{statusLabel}</span></div>{task.description && <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-slate-600">{task.description}</p>}{deadline && <p className={`mt-4 text-sm font-semibold ${closed ? 'text-rose-700' : 'text-slate-500'}`}>{t(locale, 'ui.deadline')}: {deadline.toLocaleString(dateLocale)} {closed ? `(${t(locale, 'ui.closedSubmission')})` : ''}</p>}
       {submission && <div className="mt-5 rounded-xl bg-slate-50 p-4"><p className="text-xs text-slate-500">{t(locale, 'ui.documentVersion')} {submission.documentVersion}</p>{submission.submissionLink && <a href={submission.submissionLink} target="_blank" rel="noreferrer" className="mt-2 block break-all text-sm font-semibold text-emerald-700 underline">{t(locale, 'ui.openSubmittedReport')}</a>}{submission.notes && <p className="mt-2 text-sm text-slate-600">{t(locale, 'review.studentNote')}: {submission.notes}</p>}</div>}
@@ -564,7 +564,7 @@ function ReviewPanel({ data, user }: { data: AnyRecord; user: SessionUser }) {
   return <>
     <Heading
       title={title}
-      description={`${data.courseName} (${data.classGroup})`}
+      description={`${data.courseName} · ${formatSemesterClassLabel(localizedSemesterName(locale, data.semesterName), data.targetSemester, data.classGroup)}`}
       actions={<Link href={`/courses/${data.slug}`} className={secondary}><ArrowLeft className="h-4 w-4" /> {t(locale, 'review.backToClass')} {data.courseName}</Link>}
     />
     {data.taskDescription && <p className="mb-5 whitespace-pre-line text-sm leading-7 text-slate-600">{data.taskDescription}</p>}
@@ -661,7 +661,7 @@ function TablePage({ title, description, rows, type }: { title: string; descript
           `${submission.aslabStatus} / ${submission.laboranStatus}${isFinal ? ` / ${submission.dosenStatus}` : ''}`;
         return <tr key={submission?.id ?? `${row.studentId ?? row.taskId}-${index}`}>
           <td className="px-5 py-4"><p className="font-semibold text-slate-900">{type === 'mine' ? (isFinal && row.taskTitle === 'Laporan Final' ? t(locale, 'ui.finalReport') : localizedModuleTitle(locale, row.taskTitle, row.meetingNumber ?? 0)) : row.studentName ?? submission?.studentId ?? '—'}</p><p className="mt-1 text-xs text-slate-500">{type === 'mine' ? (isFinal ? t(locale, 'ui.finalTask') : `${t(locale, 'ui.module')} ${row.meetingNumber}`) : row.studentEmail ?? submission?.studentId ?? ''}</p></td>
-          <td className="px-5 py-4"><p className="font-medium">{row.courseName ?? row.classGroup ?? (isFinal ? t(locale, 'ui.finalReport') : `${t(locale, 'ui.module')} ${row.meetingNumber ?? ''}`)}</p>{row.group && <p className="mt-1 text-xs text-slate-500">{t(locale, 'ui.class')} {row.group}</p>}{type === 'mine' && row.deadline && <p className="mt-1 text-xs text-slate-500">{t(locale, 'ui.deadlinePrefix')} {new Date(row.deadline).toLocaleString(locale === 'en' ? 'en-GB' : 'id-ID')}</p>}</td>
+          <td className="px-5 py-4"><p className="font-medium">{row.courseName ?? row.classGroup ?? (isFinal ? t(locale, 'ui.finalReport') : `${t(locale, 'ui.module')} ${row.meetingNumber ?? ''}`)}</p>{(row.semesterName || row.group || row.classGroup) && <p className="mt-1 text-xs text-slate-500">{formatSemesterClassLabel(localizedSemesterName(locale, row.semesterName), row.targetSemester, row.group ?? row.classGroup)}</p>}{type === 'mine' && row.deadline && <p className="mt-1 text-xs text-slate-500">{t(locale, 'ui.deadlinePrefix')} {new Date(row.deadline).toLocaleString(locale === 'en' ? 'en-GB' : 'id-ID')}</p>}</td>
           <td className="px-5 py-4"><span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800">{localizedStatus(locale, rawStatus)}</span></td>
           <td className="px-5 py-4">{type === 'mine' || submission?.id ? <Link href={href} className={secondary}>{type === 'mine' ? submission ? t(locale, 'ui.openStatus') : t(locale, 'ui.sendSubmission') : t(locale, 'ui.openReview')} <ArrowRight className="h-4 w-4" /></Link> : <span className="text-xs text-slate-400">{t(locale, 'ui.notSubmitted')}</span>}</td>
         </tr>;
@@ -768,7 +768,7 @@ function MeetingSubmissionsPage({ data, user }: { data: AnyRecord; user: Session
       <div className="min-w-0">
         <Link href={`/courses/${course.slug}`} className="mb-3 inline-flex items-center gap-2 text-sm font-semibold text-emerald-700 hover:text-emerald-800"><ArrowLeft className="h-4 w-4" /> {t(locale, 'submission.backToClass')}</Link>
         <p className="text-xs font-bold uppercase tracking-[0.15em] text-emerald-800">{appName}</p>
-        <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">{course.courseName} · {course.classGroup}</h1>
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">{course.courseName} · {formatSemesterClassLabel(localizedSemesterName(locale, course.semesterName), course.targetSemester, course.classGroup)}</h1>
         <p className="mt-2 text-sm text-slate-500">{t(locale, 'submission.studentListSummary')} · {meetings.length} {moduleCountLabel}</p>
       </div>
       <div className="flex flex-col gap-2 sm:items-end">
@@ -934,7 +934,7 @@ function CourseGrades({ rows, slug, course, user }: { rows: AnyRecord[]; slug: s
     : new Intl.NumberFormat(locale === 'en' ? 'en-US' : 'id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
   return <div className="mx-auto max-w-[95rem] space-y-6 px-0 sm:px-2">
     <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-      <div><Link href="/dashboard" className="mb-3 inline-flex text-sm font-semibold text-emerald-700">← {t(locale, 'ui.backToDashboard')}</Link><h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">{t(locale, 'ui.courseGrades')}</h1><p className="mt-1 text-sm text-slate-500">{course.courseName} · {t(locale, 'ui.class')} {course.classGroup} · {localizedSemesterName(locale, course.semesterName)}</p></div>
+      <div><Link href="/dashboard" className="mb-3 inline-flex text-sm font-semibold text-emerald-700">← {t(locale, 'ui.backToDashboard')}</Link><h1 className="text-2xl font-bold tracking-tight text-slate-900 sm:text-3xl">{t(locale, 'ui.courseGrades')}</h1><p className="mt-1 text-sm text-slate-500">{course.courseName} · {formatSemesterClassLabel(localizedSemesterName(locale, course.semesterName), course.targetSemester, course.classGroup)}</p></div>
       <div className="flex flex-wrap gap-2"><button type="button" onClick={() => void exportGrades()} disabled={exporting} className={secondary}><Download className="h-4 w-4" />{exporting ? t(locale, 'ui.exportingGrades') : t(locale, 'ui.exportGradesExcel')}</button><Link href={`/courses/${slug}`} className={secondary}>{t(locale, 'ui.openCourse')}</Link></div>
     </div>
     {archived && <p className="rounded-xl bg-amber-50 p-4 text-sm text-amber-800">{t(locale, 'ui.archivedGradesReadOnly')}</p>}
@@ -1038,10 +1038,12 @@ function ProfileExtras() {
   </div>;
 }
 
-function StudentManager({ slug, courseName, classGroup, isArchived, students, user }: {
+function StudentManager({ slug, courseName, classGroup, targetSemester, semesterName, isArchived, students, user }: {
   slug: string;
   courseName: string;
   classGroup: string;
+  targetSemester: number;
+  semesterName: string;
   isArchived: boolean;
   students: AnyRecord[];
   user: SessionUser;
@@ -1052,8 +1054,13 @@ function StudentManager({ slug, courseName, classGroup, isArchived, students, us
   const [selected, setSelected] = useState<AnyRecord | null>(null);
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
   const [activeSuggestion, setActiveSuggestion] = useState(-1);
+  const [manualError, setManualError] = useState('');
+  const [manualMessage, setManualMessage] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [importing, setImporting] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [failureDetails, setFailureDetails] = useState('');
   const router = useRouter();
   const canAdd = !isArchived && (user.role === 'Laboran' || user.role === 'Aslab');
   useEffect(() => {
@@ -1068,18 +1075,58 @@ function StudentManager({ slug, courseName, classGroup, isArchived, students, us
   const remove = trpc.courses.removeStudent.useMutation();
   const canRemove = !isArchived && user.role === 'Laboran';
 
-  function addSelected() {
-    if (!selected) return;
+  async function importRoster(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!file) return;
     setError('');
     setMessage('');
+    setFailureDetails('');
+    setImporting(true);
+    const body = new FormData();
+    body.set('file', file);
+    body.set('slug', slug);
+    try {
+      const response = await fetch('/api/import-course-students', { method: 'POST', body });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? t(locale, 'ui.studentImportError'));
+      const successCount = result.success?.length ?? 0;
+      const failures = (result.failures ?? []) as AnyRecord[];
+      setMessage(copy(locale, 'ui.studentImportSummary', { added: successCount, skipped: failures.length }));
+      if (failures.length) {
+        const labels: Record<string, string> = {
+          incomplete: t(locale, 'ui.studentImportIncomplete'),
+          duplicate: t(locale, 'ui.studentImportDuplicate'),
+          not_registered: t(locale, 'ui.studentImportNotRegistered'),
+          already_enrolled: t(locale, 'ui.studentImportAlreadyEnrolled'),
+        };
+        setFailureDetails(failures.map((row) => copy(locale, 'ui.studentImportFailureRow', {
+          row: row.rowNumber, id: row.id || '—', reason: labels[row.reason] ?? row.reason,
+        })).join(' · '));
+        await showAppAlert('warning', t(locale, 'ui.studentImportResultTitle'), copy(locale, 'ui.studentImportSummary', { added: successCount, skipped: failures.length }), locale);
+      } else {
+        await showAppAlert('success', t(locale, 'ui.studentImportResultTitle'), copy(locale, 'ui.studentImportSummary', { added: successCount, skipped: 0 }), locale);
+      }
+      if (successCount) router.refresh();
+    } catch (reason) {
+      setError(reason instanceof Error ? localizeServerMessage(locale, reason.message) : t(locale, 'ui.studentImportError'));
+    } finally {
+      setImporting(false);
+    }
+  }
+
+  function addSelected() {
+    if (!selected) return;
+    setManualError('');
+    setManualMessage('');
     add.mutate({ slug, studentId: selected.id }, {
       onSuccess: () => {
         setQuery('');
+        setSearchTerm('');
         setSelected(null);
-        setMessage(t(locale, 'ui.studentAdded'));
+        setManualMessage(t(locale, 'ui.studentAdded'));
         router.refresh();
       },
-      onError: (reason) => setError(localizeServerMessage(locale, reason.message)),
+      onError: (reason) => setManualError(localizeServerMessage(locale, reason.message)),
     });
   }
 
@@ -1092,7 +1139,7 @@ function StudentManager({ slug, courseName, classGroup, isArchived, students, us
   return <>
     <Heading
       title={t(locale, 'ui.studentList')}
-      description={`${courseName} (${classGroup})`}
+      description={`${courseName} · ${formatSemesterClassLabel(localizedSemesterName(locale, semesterName), targetSemester, classGroup)}`}
       actions={<Link href={`/courses/${slug}`} className={secondary}><ArrowLeft className="h-4 w-4" /> {t(locale, 'ui.backToCourseDetails')}</Link>}
     />
     <section className={`${card} mb-6 flex flex-wrap items-center justify-between gap-4 px-5 py-4`}>
@@ -1102,64 +1149,65 @@ function StudentManager({ slug, courseName, classGroup, isArchived, students, us
       </div>
     </section>
     {canAdd && <section className="mb-8 rounded-3xl border border-emerald-100 bg-emerald-50/70 p-5 shadow-sm sm:p-6">
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-        <div className="lg:max-w-sm">
-          <p className="text-xs font-semibold text-emerald-600">{t(locale, 'ui.manageRoster')}</p>
-          <h2 className="mt-2 text-xl font-semibold text-slate-900">{t(locale, 'ui.addStudent')}</h2>
-          <p className="mt-1 text-sm text-slate-500">{t(locale, 'ui.searchStudentHint')}</p>
-        </div>
-        <div className="w-full lg:max-w-2xl">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
-            <div className="relative flex-1" onBlur={(event) => {
+      <p className="mb-4 text-xs font-semibold text-emerald-600">{t(locale, 'ui.manageRoster')}</p>
+      <div className="grid gap-5 lg:grid-cols-2">
+        <div className="rounded-2xl border border-emerald-100 bg-white/80 p-5">
+          <h2 className="text-xl font-semibold text-slate-900">{t(locale, 'ui.addStudent')}</h2>
+          <p className="mt-1 text-sm leading-6 text-slate-500">{t(locale, 'ui.searchStudentHint')}</p>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start">
+            <div className="relative min-w-0 flex-1" onBlur={(event) => {
               const target = event.relatedTarget;
               if (!(target instanceof Node) || !event.currentTarget.contains(target)) setSuggestionsOpen(false);
             }}>
               <label htmlFor="student_search" className="sr-only">{t(locale, 'ui.searchStudent')}</label>
               <div className="relative">
                 <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-                <input
-                  id="student_search"
-                  type="search"
-                  autoComplete="off"
-                  role="combobox"
+                <input id="student_search" type="search" autoComplete="off" role="combobox"
                   aria-expanded={Boolean(suggestionsOpen && !selected && query.trim().length >= 3)}
-                  aria-controls="student_suggestions"
-                  aria-activedescendant={activeSuggestion >= 0 ? `student-option-${activeSuggestion}` : undefined}
+                  aria-controls="student_suggestions" aria-activedescendant={activeSuggestion >= 0 ? `student-option-${activeSuggestion}` : undefined}
                   value={selected ? `${selected.id} — ${selected.name}` : query}
                   onFocus={() => setSuggestionsOpen(true)}
-                  onChange={(event) => { setSelected(null); setQuery(event.target.value); setActiveSuggestion(-1); setSuggestionsOpen(true); setError(''); }}
+                  onChange={(event) => { setSelected(null); setQuery(event.target.value); setActiveSuggestion(-1); setSuggestionsOpen(true); setManualError(''); }}
                   onKeyDown={(event) => {
                     if (event.key === 'Escape') { setSuggestionsOpen(false); setActiveSuggestion(-1); }
                     else if (event.key === 'ArrowDown' && suggestions.length) { event.preventDefault(); setSuggestionsOpen(true); setActiveSuggestion((current) => Math.min(current + 1, suggestions.length - 1)); }
                     else if (event.key === 'ArrowUp' && suggestions.length) { event.preventDefault(); setSuggestionsOpen(true); setActiveSuggestion((current) => Math.max(current - 1, 0)); }
                     else if (event.key === 'Enter' && activeSuggestion >= 0 && suggestions[activeSuggestion]) { event.preventDefault(); chooseStudent(suggestions[activeSuggestion]); }
                   }}
-                  className={`${inputClass} pl-11`}
-                  placeholder={t(locale, 'ui.studentSearchPlaceholder')}
-                />
+                  className={`${inputClass} pl-11`} placeholder={t(locale, 'ui.studentSearchPlaceholder')} />
               </div>
               {query.trim().length > 0 && query.trim().length < 3 && <p className="mt-2 text-xs font-semibold text-slate-500">{t(locale, 'ui.minimumThree')}</p>}
               {!selected && suggestionsOpen && query.trim().length >= 3 && <div id="student_suggestions" role="listbox" className="absolute z-30 mt-2 max-h-72 w-full overflow-y-auto rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl">
                 {(!activeQuery || found.isFetching) && <p className="px-4 py-3 text-sm font-semibold text-slate-500">{t(locale, 'ui.searchingStudents')}</p>}
                 {found.isError && <p className="px-4 py-3 text-sm font-semibold text-rose-600">{t(locale, 'ui.studentSearchFailed')}</p>}
                 {activeQuery && !found.isFetching && !found.isError && found.data?.length === 0 && <p className="px-4 py-3 text-sm font-semibold text-slate-500">{t(locale, 'ui.noMatchingStudent')}</p>}
-                {(activeQuery ? found.data : undefined)?.map((student, index) => <button
-                  key={student.id}
-                  type="button"
-                  role="option"
-                  id={`student-option-${index}`}
-                  aria-selected={index === activeSuggestion}
-                  onClick={() => chooseStudent(student)}
-                  className={`flex w-full items-center justify-between gap-4 rounded-xl px-4 py-3 text-left transition hover:bg-emerald-50 focus:bg-emerald-50 focus:outline-none ${index === activeSuggestion ? 'bg-emerald-50' : ''}`}
-                ><span className="min-w-0"><span className="block truncate text-sm font-semibold text-slate-800">{student.name}</span><span className="block truncate text-xs text-slate-400">{student.email}</span></span><span className="shrink-0 text-xs font-bold text-emerald-700">{student.id}</span></button>)}
+                {(activeQuery ? found.data : undefined)?.map((student, index) => <button key={student.id} type="button" role="option" id={`student-option-${index}`}
+                  aria-selected={index === activeSuggestion} onClick={() => chooseStudent(student)}
+                  className={`flex w-full items-center justify-between gap-4 rounded-xl px-4 py-3 text-left transition hover:bg-emerald-50 focus:bg-emerald-50 focus:outline-none ${index === activeSuggestion ? 'bg-emerald-50' : ''}`}>
+                  <span className="min-w-0"><span className="block truncate text-sm font-semibold text-slate-800">{student.name}</span></span>
+                  <span className="shrink-0 text-xs font-bold text-emerald-700">{student.id}</span>
+                </button>)}
               </div>}
             </div>
-            <button type="button" onClick={addSelected} disabled={!selected || add.isPending} className={primary}>+ {t(locale, 'ui.addToCourse')}</button>
+            <button type="button" onClick={addSelected} disabled={!selected || add.isPending} className={`${primary} shrink-0`}>+ {t(locale, 'ui.addToCourse')}</button>
+          </div>
+          <div className="mt-3 space-y-2"><Notice error>{manualError}</Notice><Notice>{manualMessage}</Notice></div>
+        </div>
+        <div className="rounded-2xl border border-emerald-100 bg-white/80 p-5">
+          <h2 className="text-xl font-semibold text-slate-900">{t(locale, 'ui.importCourseStudents')}</h2>
+          <p className="mt-1 text-sm leading-6 text-slate-500">{t(locale, 'ui.studentImportHelp')}</p>
+          <div className="mt-4 space-y-3">
+            <button type="button" onClick={() => void import('@/lib/course-roster-template').then(({ downloadCourseRosterTemplate }) => downloadCourseRosterTemplate(locale))} className={secondary}><Download className="h-4 w-4" />{t(locale, 'ui.downloadStudentTemplate')}</button>
+            <form onSubmit={importRoster} className="flex flex-col gap-3">
+              <label className="sr-only" htmlFor="course_student_file">{t(locale, 'ui.importCourseStudents')}</label>
+              <input id="course_student_file" type="file" accept=".xlsx,.xls,.csv" onChange={(event) => { setFile(event.target.files?.[0] ?? null); setError(''); setFailureDetails(''); }} className={inputClass} required />
+              <button type="submit" disabled={!file || importing} className={`${primary} self-start`}><ArrowDownToLine className="h-4 w-4" />{importing ? t(locale, 'ui.processing') : t(locale, 'ui.importCourseStudents')}</button>
+            </form>
           </div>
         </div>
       </div>
     </section>}
-    <Notice error>{error}</Notice><Notice>{message}</Notice>
+    <Notice error>{error || failureDetails}</Notice><Notice>{message}</Notice>
     <div className={`${card} overflow-hidden`}>
       <div className="overflow-x-auto">
         <table className="w-full min-w-[720px] border-collapse text-left text-sm">
@@ -1305,7 +1353,7 @@ function ModuleEditor({ data }: { data: AnyRecord }) {
     <Heading
       eyebrow={t(locale, 'module.eyebrow')}
       title={`${t(locale, 'module.title')} · ${data.courseName}`}
-      description={t(locale, 'module.description')}
+      description={`${formatSemesterClassLabel(localizedSemesterName(locale, data.semesterName), data.targetSemester, data.classGroup)} · ${t(locale, 'module.description')}`}
       actions={<div className="flex flex-col gap-2 2xl:flex-row 2xl:items-center"><Link href={`/courses/${data.slug}`} className={secondary}><ArrowLeft className="h-4 w-4" />{t(locale, 'module.back')}</Link><button type="button" className={secondary} onClick={addModule} disabled={mutation.isPending || modules.length >= 16} title={modules.length >= 16 ? t(locale, 'module.limitText') : undefined}><Plus className="h-4 w-4" />{t(locale, 'module.add')}</button>{modules.length >= 16 && <p className="max-w-48 text-xs leading-5 text-slate-500">{t(locale, 'module.limitText')}</p>}{saveButton()}</div>}
     />
 
@@ -1395,15 +1443,26 @@ function UserManager({ currentUserId }: { currentUserId: string }) {
   const utils = trpc.useUtils();
   const [search, setSearch] = useState('');
   const [role, setRole] = useState('');
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState<10 | 25 | 50 | 100>(25);
   const [error, setError] = useState('');
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importBusy, setImportBusy] = useState(false);
+  const [importMessage, setImportMessage] = useState('');
+  const [importError, setImportError] = useState('');
+  const [importFailures, setImportFailures] = useState<Array<{ rowNumber: number; id: string; reason: string }>>([]);
   const [editing, setEditing] = useState<{ id: string; name: string; email: string } | null>(null);
   const editDialogRef = useRef<HTMLDialogElement>(null);
   const query = trpc.users.list.useQuery({
     search,
     roles: role ? [role as 'Mahasiswa' | 'Dosen' | 'Laboran' | 'Aslab'] : [],
-    limit: 25,
-    offset: 0,
+    limit: pageSize,
+    offset: page * pageSize,
   }, { placeholderData: (previous) => previous });
+  const total = query.data?.total ?? 0;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const pageStart = total ? page * pageSize + 1 : 0;
+  const pageEnd = Math.min((page + 1) * pageSize, total);
   const updateRole = trpc.users.updateRole.useMutation();
   const updateAccount = trpc.users.updateAccount.useMutation();
   const deleteAccount = trpc.users.deleteAccount.useMutation();
@@ -1418,7 +1477,9 @@ function UserManager({ currentUserId }: { currentUserId: string }) {
     else if (!editing && dialog.open) dialog.close();
   }, [editing]);
 
-  function refreshUsers() {
+  function refreshUsers(nextTotal = total) {
+    const lastPage = Math.max(0, Math.ceil(nextTotal / pageSize) - 1);
+    setPage((current) => Math.min(current, lastPage));
     void utils.users.list.invalidate();
     router.refresh();
   }
@@ -1459,7 +1520,7 @@ function UserManager({ currentUserId }: { currentUserId: string }) {
       if (!confirmed) return;
       deleteAccount.mutate({ id: item.id }, {
         onSuccess: () => {
-          refreshUsers();
+          refreshUsers(total - 1);
           void showAppAlert('success', t(locale, 'ui.actionSucceeded'), t(locale, 'ui.userAccountDeleted'), locale);
         },
         onError: handleError,
@@ -1467,11 +1528,87 @@ function UserManager({ currentUserId }: { currentUserId: string }) {
     });
   }
 
+  async function importStudents(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!importFile) return;
+    setImportBusy(true);
+    setImportMessage('');
+    setImportError('');
+    setImportFailures([]);
+    const body = new FormData();
+    body.set('file', importFile);
+    try {
+      const response = await fetch('/api/import-students', { method: 'POST', body });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error ?? t(locale, 'ui.userStudentImportError'));
+      const successes = (result.success ?? []) as Array<{ status: 'created' | 'approved' | 'already_approved' }>;
+      const failures = (result.failures ?? []) as Array<{ rowNumber: number; id: string; reason: string }>;
+      const created = successes.filter((row) => row.status === 'created').length;
+      const approved = successes.filter((row) => row.status === 'approved').length;
+      const alreadyApproved = successes.filter((row) => row.status === 'already_approved').length;
+      setImportMessage(copy(locale, 'ui.userStudentImportSummary', { created, approved, alreadyApproved, skipped: failures.length }));
+      setImportFailures(failures);
+      setImportFile(null);
+      const input = document.getElementById('user_student_import_file') as HTMLInputElement | null;
+      if (input) input.value = '';
+      if (successes.length) {
+        setSearch('');
+        setRole('');
+        setPage(0);
+        await utils.users.list.invalidate();
+      }
+      if (failures.length) {
+        await showAppAlert('warning', t(locale, 'ui.userStudentImportResultTitle'), copy(locale, 'ui.userStudentImportSummary', { created, approved, alreadyApproved, skipped: failures.length }), locale);
+      } else {
+        await showAppAlert('success', t(locale, 'ui.userStudentImportResultTitle'), copy(locale, 'ui.userStudentImportSummary', { created, approved, alreadyApproved, skipped: 0 }), locale);
+      }
+    } catch (reason) {
+      setImportError(reason instanceof Error ? localizeServerMessage(locale, reason.message) : t(locale, 'ui.userStudentImportError'));
+    } finally {
+      setImportBusy(false);
+    }
+  }
+
+  const importFailureLabels: Record<string, string> = {
+    incomplete: t(locale, 'ui.userStudentImportIncomplete'),
+    duplicate: t(locale, 'ui.userStudentImportDuplicate'),
+    not_student: t(locale, 'ui.userStudentImportNotStudent'),
+    name_mismatch: t(locale, 'ui.userStudentImportNameMismatch'),
+    email_conflict: t(locale, 'ui.userStudentImportEmailConflict'),
+    account_changed: t(locale, 'ui.userStudentImportAccountChanged'),
+  };
+
   return <>
-    <Heading title={t(locale, 'ui.userManagement')} description={copy(locale, 'ui.accountsFound', { count: query.data?.total ?? 0 })} />
+    <Heading title={t(locale, 'ui.userManagement')} description={copy(locale, 'ui.accountsFound', { count: total })} />
+    <section className={`${card} mb-5 space-y-4 p-5 sm:p-6`}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-900">{t(locale, 'ui.userStudentImportTitle')}</h2>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-500">{t(locale, 'ui.userStudentImportHelp')}</p>
+        </div>
+        <button type="button" onClick={() => void import('@/lib/student-user-template').then(({ downloadStudentUserTemplate }) => downloadStudentUserTemplate(locale))} className={secondary}>
+          <Download className="h-4 w-4" />{t(locale, 'ui.userStudentTemplate')}
+        </button>
+      </div>
+      <form onSubmit={importStudents} className="flex flex-col gap-3 sm:flex-row sm:items-start">
+        <label className="sr-only" htmlFor="user_student_import_file">{t(locale, 'ui.userStudentImportTitle')}</label>
+        <input id="user_student_import_file" type="file" accept=".xlsx,.xls,.csv" onChange={(event) => { setImportFile(event.target.files?.[0] ?? null); setImportMessage(''); setImportError(''); setImportFailures([]); }} className={inputClass} required />
+        <button type="submit" disabled={!importFile || importBusy} className={`${primary} shrink-0`}>
+          <ArrowDownToLine className="h-4 w-4" />{importBusy ? t(locale, 'ui.processing') : t(locale, 'ui.userStudentImportTitle')}
+        </button>
+      </form>
+      <p className="text-xs leading-5 text-slate-500">{t(locale, 'ui.userStudentImportPassword')}</p>
+      <Notice>{importMessage}</Notice>
+      <Notice error>{importError}</Notice>
+      {importFailures.length > 0 && <ul className="space-y-1 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs leading-5 text-amber-900">
+        {importFailures.map((row, index) => <li key={`${row.rowNumber}-${row.id}-${index}`}>{copy(locale, 'ui.userStudentImportFailureRow', {
+          row: row.rowNumber, id: row.id || '—', reason: importFailureLabels[row.reason] ?? row.reason,
+        })}</li>)}
+      </ul>}
+    </section>
     <div className={`${card} mb-5 flex flex-col gap-3 p-4 sm:flex-row`}>
-      <input className={inputClass} value={search} onChange={(event) => setSearch(event.target.value)} placeholder={t(locale, 'ui.searchIdNameEmail')} />
-      <select value={role} onChange={(event) => setRole(event.target.value)} className={inputClass}>
+      <input className={inputClass} value={search} onChange={(event) => { setSearch(event.target.value); setPage(0); }} placeholder={t(locale, 'ui.searchIdNameEmail')} />
+      <select value={role} onChange={(event) => { setRole(event.target.value); setPage(0); }} className={inputClass}>
         <option value="">{t(locale, 'ui.allRoles')}</option>
         {roles.map((item) => <option key={item} value={item}>{roleText(item)}</option>)}
       </select>
@@ -1493,7 +1630,7 @@ function UserManager({ currentUserId }: { currentUserId: string }) {
             <tr key={item.id}>
               <td className="px-5 py-4">
                 <p className="font-semibold">{item.name}</p>
-                <p className="mt-1 text-xs text-slate-500">{item.id} · {item.email}</p>
+                <p className="mt-1 text-xs text-slate-500">{item.id}{!item.email.endsWith('@students.si-praktikum.invalid') ? ` · ${item.email}` : ''}</p>
               </td>
               <td className="px-5 py-4">{roleText(item.role)}</td>
               <td className="px-5 py-4 text-xs">{item.approvedAt ? t(locale, 'ui.approved') : t(locale, 'ui.waiting')}</td>
@@ -1551,8 +1688,24 @@ function UserManager({ currentUserId }: { currentUserId: string }) {
               </td>
             </tr>
           </Fragment>)}
+          {!query.isLoading && query.data?.users.length === 0 && <tr><td colSpan={5} className="px-5 py-12 text-center text-sm text-slate-500">{t(locale, 'ui.noUsersFound')}</td></tr>}
         </tbody>
       </table>
+    </div>
+    <div className={`${card} mt-3 flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between`}>
+      <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+        <span>{copy(locale, 'ui.paginationSummary', { start: pageStart, end: pageEnd, total })}</span>
+        <label className="flex items-center gap-2">
+          <span>{t(locale, 'ui.rowsPerPage')}</span>
+          <select aria-label={t(locale, 'ui.rowsPerPage')} value={pageSize} onChange={(event) => { setPageSize(Number(event.target.value) as 10 | 25 | 50 | 100); setPage(0); }} className="rounded-lg border border-slate-200 bg-white px-2 py-1.5">
+            {[10, 25, 50, 100].map((size) => <option key={size} value={size}>{size}</option>)}
+          </select>
+        </label>
+      </div>
+      <div className="flex gap-2">
+        <button type="button" className={secondary} disabled={page === 0 || query.isFetching} onClick={() => setPage((current) => Math.max(0, current - 1))}><ArrowLeft className="h-4 w-4" />{t(locale, 'ui.previousPage')}</button>
+        <button type="button" className={secondary} disabled={page + 1 >= totalPages || query.isFetching} onClick={() => setPage((current) => current + 1)}>{t(locale, 'ui.nextPage')}<ArrowRight className="h-4 w-4" /></button>
+      </div>
     </div>
     {editing && <dialog
       ref={editDialogRef}
@@ -1576,10 +1729,10 @@ function UserManager({ currentUserId }: { currentUserId: string }) {
             <span className="mb-2 block text-xs font-semibold text-slate-700">{t(locale, 'ui.name')}</span>
             <input className={inputClass} value={editing.name} onChange={(event) => setEditing((current) => current ? { ...current, name: event.target.value } : current)} minLength={2} maxLength={255} required />
           </label>
-          <label className="block">
+          {editing.email.endsWith('@students.si-praktikum.invalid') ? <p className="self-end pb-3 text-xs leading-5 text-slate-500 sm:col-span-2">{t(locale, 'ui.studentAccountNoEmail')}</p> : <label className="block">
             <span className="mb-2 block text-xs font-semibold text-slate-700">{t(locale, 'auth.email')}</span>
             <input className={inputClass} type="email" value={editing.email} onChange={(event) => setEditing((current) => current ? { ...current, email: event.target.value } : current)} maxLength={255} required />
-          </label>
+          </label>}
           <div className="flex flex-wrap gap-2 sm:col-span-2">
             <button className={primary} disabled={updateAccount.isPending}>
               {updateAccount.isPending ? t(locale, 'ui.processing') : t(locale, 'ui.saveChanges')}
@@ -1602,7 +1755,7 @@ function ImportUsers() {
 function FinalTaskManager({ data }: { data: AnyRecord }) {
   const locale = useLocale();
   const [description, setDescription] = useState(data.task.description); const [deadline, setDeadline] = useState(data.task.deadline ? new Date(data.task.deadline).toISOString().slice(0, 16) : ''); const mutation = trpc.meetings.finalTaskUpdate.useMutation(); const router = useRouter(); const [error, setError] = useState('');
-  return <><Heading title={t(locale, 'ui.manageFinalReport')} description={`${data.course.courseName} · ${t(locale, 'ui.class')} ${data.course.classGroup}`} /><section className={`${card} p-5 sm:p-7`}><form className="space-y-4" onSubmit={(event) => { event.preventDefault(); mutation.mutate({ id: data.task.id, description, ...(deadline ? { deadline: new Date(deadline) } : {}) }, { onSuccess: () => router.refresh(), onError: (reason) => setError(localizeServerMessage(locale, reason.message)) }); }}><Notice error>{error}</Notice><label className="block"><span className="mb-2 block text-xs font-semibold">{t(locale, 'ui.finalInstructions')}</span><textarea rows={6} value={description} onChange={(event) => setDescription(event.target.value)} className={inputClass} required /></label><label className="block max-w-md"><span className="mb-2 block text-xs font-semibold">{t(locale, 'ui.deadline')}</span><input type="datetime-local" value={deadline} onChange={(event) => setDeadline(event.target.value)} className={inputClass} /></label><button className={primary}>{t(locale, 'ui.saveSettings')}</button></form></section><div className="mt-6"><TablePage title={t(locale, 'ui.finalSubmissions')} description={t(locale, 'ui.finalSubmissionsDescription')} rows={data.students.map((student: AnyRecord) => ({ studentName: student.name, studentId: student.id, courseName: data.course.courseName, submission: data.submissions.find((item: AnyRecord) => item.studentId === student.id && item.isFinal) }))} type="meeting" /></div></>;
+  return <><Heading title={t(locale, 'ui.manageFinalReport')} description={`${data.course.courseName} · ${formatSemesterClassLabel(localizedSemesterName(locale, data.course.semesterName), data.course.targetSemester, data.course.classGroup)}`} /><section className={`${card} p-5 sm:p-7`}><form className="space-y-4" onSubmit={(event) => { event.preventDefault(); mutation.mutate({ id: data.task.id, description, ...(deadline ? { deadline: new Date(deadline) } : {}) }, { onSuccess: () => router.refresh(), onError: (reason) => setError(localizeServerMessage(locale, reason.message)) }); }}><Notice error>{error}</Notice><label className="block"><span className="mb-2 block text-xs font-semibold">{t(locale, 'ui.finalInstructions')}</span><textarea rows={6} value={description} onChange={(event) => setDescription(event.target.value)} className={inputClass} required /></label><label className="block max-w-md"><span className="mb-2 block text-xs font-semibold">{t(locale, 'ui.deadline')}</span><input type="datetime-local" value={deadline} onChange={(event) => setDeadline(event.target.value)} className={inputClass} /></label><button className={primary}>{t(locale, 'ui.saveSettings')}</button></form></section><div className="mt-6"><TablePage title={t(locale, 'ui.finalSubmissions')} description={t(locale, 'ui.finalSubmissionsDescription')} rows={data.students.map((student: AnyRecord) => ({ studentName: student.name, studentId: student.id, courseName: data.course.courseName, submission: data.submissions.find((item: AnyRecord) => item.studentId === student.id && item.isFinal) }))} type="meeting" /></div></>;
 }
 
 export function FeatureContent({ page, user, data }: { page: string; user: SessionUser; data: unknown }) {
@@ -1628,9 +1781,9 @@ export function FeatureContent({ page, user, data }: { page: string; user: Sessi
     case 'account-approvals': return <ApprovalManager data={result} />;
     case 'tutorials': return <TutorialManager rows={result as unknown as AnyRecord[]} isLaboran={user.role === 'Laboran'} />;
     case 'grades': return <CourseGrades rows={result.rows} slug={result.slug} course={result.course} user={user} />;
-    case 'students': return <StudentManager slug={result.slug} courseName={result.courseName} classGroup={result.classGroup} isArchived={result.isArchived} students={result.students as AnyRecord[]} user={user} />;
+    case 'students': return <StudentManager slug={result.slug} courseName={result.courseName} classGroup={result.classGroup} targetSemester={result.targetSemester} semesterName={result.semesterName} isArchived={result.isArchived} students={result.students as AnyRecord[]} user={user} />;
     case 'module-editor': return <ModuleEditor data={result} />;
-    case 'laprak-report': return <LaprakReport data={result as unknown as LaprakReportData} />;
+    case 'laprak-report': return <LaprakReport data={result as unknown as LaprakReportData} user={user} />;
     case 'users': return <UserManager currentUserId={user.id} />;
     case 'import-users': return <ImportUsers />;
     case 'final-task': return <FinalTaskManager data={result} />;
