@@ -57,7 +57,7 @@ export const coursesRouter = router({
     if (user.role === 'Mahasiswa') filters.push(sql`EXISTS (SELECT 1 FROM course_user cu WHERE cu.course_id = ${courses.id} AND cu.user_id = ${user.id})` as never);
     if (user.role === 'Dosen') filters.push(eq(courses.dosenId, user.id));
     if (user.role === 'Aslab') filters.push(eq(courses.aslabId, user.id));
-    if (user.role === 'Laboran' && input?.view !== 'all') filters.push(eq(courses.laboranId, user.id));
+    if (user.role === 'Laboran') filters.push(eq(courses.laboranId, user.id));
 
     const rows = await getDb().select({
       id: courses.id, slug: courses.slug, name: courses.courseName, group: courses.classGroup,
